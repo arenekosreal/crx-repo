@@ -77,10 +77,16 @@ class ExtensionDownloader:
                 _logger.debug("Checking checksums of extension %s...", self.extension_id)
                 sha256_hash = hash_calculator.hexdigest()
                 if sha256_hash != sha256:
-                    _logger.error("SHA256 checksum of %s mismatch. Removing file.", self.extension_id)
+                    _logger.error(
+                        "SHA256 checksum of %s mismatch. Removing file.",
+                        self.extension_id,
+                    )
                     extension_path.unlink()
                 else:
-                    _logger.info("SHA256 checksum of %s match. Keeping file.", self.extension_id)
+                    _logger.info(
+                        "SHA256 checksum of %s match. Keeping file.",
+                        self.extension_id,
+                    )
 
     async def _check_update(
         self,
