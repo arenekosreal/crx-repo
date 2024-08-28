@@ -1,0 +1,45 @@
+# Set logger level  for diagnosing
+# Available value: "NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+# Can override level in commandline argument
+#log-level = "DEBUG"
+
+# The path of manifest, must starts with /
+# http://<listen.tcp.http.adress>:<listen.tcp.http.port>/updates.xml
+#manifest-path = "/updates.xml"
+
+# The prefix of crx path
+#prefix = "crx-repo"
+
+# The host part of generated url in updates.xml
+# <base>/<prefix>/example.crx
+#base = "http://localhost:8888"
+
+# Use proxy to connect to google web store
+#proxy = "http://127.0.0.1:2080"
+
+# Which Chrome/Chromium version sent to Google
+#version = "128.0"
+
+# how many seconds to trigger extension checking.
+#interval = 10800
+
+# Which extensions to track updating
+#extensions = []
+
+# Which directory is used to storage cache
+#cache-dir = "cache"
+
+[listen.tcp]
+# Listen TCP socket and transport http data
+address = "127.0.0.1"
+port = 8888
+
+#[listen.tcp.tls]
+#cert = "crx-repo.crt"
+#key = "crx-repo.key" # Or leave key empty to use private key in cert
+# Can be used on unix socket with key listen.unix.tls
+
+#[listen.unix]
+# Listen Unix socket and transport http data
+#path = "/run/crx-repo/crx-repo.socket"
+#permission = 666

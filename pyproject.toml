@@ -1,0 +1,142 @@
+[project]
+authors = [
+    {name = "Zhang Hua", email = "zhanghua.00@qq.com"},
+]
+requires-python = "<4.0,>=3.12"
+dependencies = [
+    "aiohttp<4.0.0,>=3.9.3",
+    "defusedxml>=0.7.1",
+]
+name = "crx-repo"
+description = "Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."
+readme = "README.md"
+dynamic = ["version"]
+
+[project.scripts]
+crx-repo = "crx_repo:main"
+
+[project.optional-dependencies]
+uvloop = [
+    "uvloop>=0.20.0",
+]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.version]
+source = "file"
+path = "src/crx_repo/__init__.py"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest-aiohttp<2.0.0,>=1.0.5",
+    "pytest-cov<6.0.0,>=5.0.0",
+    "pytest-ruff<1.0.0,>=0.3.1",
+]
+
+[tool.basedpyright]
+venvPath="."
+venv=".venv"
+reportMissingImports = true
+pythonPlatform = "All"
+typeCheckingMode = "all"
+useLibraryCodeForTypes = true
+# diagnostic rules
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+reportMissingTypeStubs = "warning"
+reportImportCycles = true
+reportUninitializedInstanceVariable = "warning"
+reportCallInDefaultInitializer = "warning"
+reportImplicitStringConcatenation = true
+reportUnusedCallResult = "information"
+reportUnnecessaryTypeIgnoreComment = "information"
+reportImplicitOverride = "information"
+reportShadowedImports = "information"
+
+[tool.pytest.ini_options]
+addopts = "--cov=crx_repo --ruff"
+required_plugins = "pytest-ruff pytest-cov pytest-aiohttp"
+
+[tool.ruff]
+builtins = ["_"]
+line-length = 100
+extend-exclude = ["__pycache__"]
+output-format = "github"
+required-version = ">=0.6.2"
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "F", # Pyflakes
+    "E", "W", # pycodestyle, Error, Warning
+    "I", # isort
+    "N", # pep8-naming
+    "D", # pydocstyle
+    "ANN", # flake8-annotations
+    "ASYNC", # flake8-async
+    "S", # flake8-bandit
+    "B", # flake8-bugbear
+    "A", # flake8-builtins
+    "COM", # flake8-commas
+    "C4", # flake8-comprehensions
+    "ISC", # flake8-implicit-str-concat
+    "T20", # flake8-print
+    "PT", # flake8-pytest-style
+    "Q", # flake8-quotes
+    "RSE", # flake8-raise
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "FIX", # flake8-fixme
+    "ERA", # eradicate
+    "PL", # Pylint
+    "R", # Refactor
+    "FLY", # flynt
+    "FURB", # refurb
+    "LOG", # flake8-logging
+    "RUF", # Ruff specific
+]
+ignore = [
+    "ANN101", # type for self
+    "ANN102", # type for cls
+    "PLW0603", # global statements
+    "FIX002", # todo is not critical
+    "COM812",
+    "ISC001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# tests are usually using assert and private objects
+# pyright is not happy when using i.attr
+# test __eq__ function should not be changed to ==
+"tests/**.py" = ["S101"]
+# async generator is required by aiohttp
+"src/crx_repo/__init__.py" = ["RUF029"]
+# xml.etree.ElementTree is used for creating xml instead parsing
+# async generator is required by aiohttp
+"src/crx_repo/server.py" = ["S405", "RUF029"]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+mypy-init-return = true
+suppress-dummy-args = true
+suppress-none-returning = true
+
+[tool.ruff.lint.isort]
+force-single-line = true
+length-sort = true
+lines-after-imports = 2
+no-sections = true
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 100
+max-line-length = 100
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+docstring-code-format = true
