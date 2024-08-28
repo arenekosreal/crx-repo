@@ -128,6 +128,8 @@ def setup_server(
     app.cleanup_ctx.append(register_services)
 
     prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
+    manifest_path = config.manifest_path if config.manifest_path.startswith("/") else \
+        "/" + config.manifest_path
 
     async def _handle_manifest(request: web.Request) -> web.Response:
         absolute_base = config.base + prefix + "/"
@@ -159,7 +161,7 @@ def setup_server(
         )
 
     _ = app.router.add_static(prefix, cache_path, name="crx-handler")
-    _ = app.router.add_get(config.manifest_path, _handle_manifest, name="manifest-handler")
+    _ = app.router.add_get(manifest_path, _handle_manifest, name="manifest-handler")
     return app
 
 

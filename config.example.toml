@@ -3,19 +3,21 @@
 # Can override level in commandline argument
 #log-level = "DEBUG"
 
-# The path of manifest, must starts with /
-# http://<listen.tcp.http.adress>:<listen.tcp.http.port>/updates.xml
+# The path of manifest, must starts with /, or we will prepend a /
+# http://<listen.tcp.http.adress>:<listen.tcp.http.port>/<manifest-path>
 #manifest-path = "/updates.xml"
 
-# The prefix of crx path
-#prefix = "crx-repo"
+# The prefix of crx path, must starts with /, or we will prepend a /
+#prefix = "/crx-repo"
 
 # The host part of generated url in updates.xml
-# <base>/<prefix>/example.crx
+# generated url format:
+# <base>/<prefix>/<extension-id>/<extension-version>.crx
 #base = "http://localhost:8888"
 
 # Use proxy to connect to google web store
-#proxy = "http://127.0.0.1:2080"
+# Simply remove this to connect directly
+#proxy = ""
 
 # Which Chrome/Chromium version sent to Google
 #version = "128.0"
@@ -24,6 +26,7 @@
 #interval = 10800
 
 # Which extensions to track updating
+# Write their id here
 #extensions = []
 
 # Which directory is used to storage cache
@@ -36,7 +39,7 @@ port = 8888
 
 #[listen.tcp.tls]
 #cert = "crx-repo.crt"
-#key = "crx-repo.key" # Or leave key empty to use private key in cert
+#key = "crx-repo.key" # Or remove this to use private key in cert
 # Can be used on unix socket with key listen.unix.tls
 
 #[listen.unix]

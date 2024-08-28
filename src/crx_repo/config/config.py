@@ -43,7 +43,7 @@ class Config:
     """Main runtime config."""
     log_level: LogLevelType = "INFO"
     manifest_path: str = "/updates.xml"
-    prefix: str = "crx-repo"
+    prefix: str = "/crx-repo"
     base: str = "http://localhost:8888"
     proxy: str | None = None
     version: str = "128.0"
