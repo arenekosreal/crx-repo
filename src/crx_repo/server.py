@@ -160,6 +160,11 @@ def setup_server(
             charset="utf-8"
         )
 
+    if not cache_path.is_dir():
+        if cache_path.exists():
+            _logger.debug("Removing %s to create directory.", cache_path)
+            cache_path.unlink()
+        cache_path.mkdir(parents=True)
     _ = app.router.add_static(prefix, cache_path, name="crx-handler")
     _ = app.router.add_get(manifest_path, _handle_manifest, name="manifest-handler")
     return app
