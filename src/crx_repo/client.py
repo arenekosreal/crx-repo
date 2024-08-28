@@ -37,6 +37,7 @@ class ExtensionDownloader:
         if self.proxy is not None:
             _logger.info("Using proxy %s to download extension...", self.proxy)
         self.CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
+        self.CHUNK_SIZE_BYTES = 10240
 
     async def download_forever(self):
         """Download extension forever."""
@@ -66,14 +67,20 @@ class ExtensionDownloader:
                     return
                 if response.content_length != int(size):
                     _logger.warning("Content-Length is not equals to size returned by API.")
-                content = await response.content.read()
-            sha256_hash = hashlib.sha256(content).hexdigest()
-            if sha256_hash != sha256:
-                _logger.error("SHA256 checksum of %s mismatch.", self.extension_id)
-                return
-            extension_path = self.cache_path / (version + ".crx")
-            _logger.debug("Writing extension content of %s.", extension_path)
-            _ = extension_path.write_bytes(content)
+                hash_calculator = hashlib.sha256()
+                extension_path = self.cache_path / (version + ".crx")
+                with extension_path.open("wb") as writer:
+                    async for chunk in response.content.iter_chunked(self.CHUNK_SIZE_BYTES):
+                        _logger.debug("Writing %s byte(s) into %s...", len(chunk), extension_path)
+                        hash_calculator.update(chunk)
+                        _ = writer.write(chunk)
+                _logger.debug("Checking checksums of extension %s...", self.extension_id)
+                sha256_hash = hash_calculator.hexdigest()
+                if sha256_hash != sha256:
+                    _logger.error("SHA256 checksum of %s mismatch. Removing file.", self.extension_id)
+                    extension_path.unlink()
+                else:
+                    _logger.info("SHA256 checksum of %s match. Keeping file.", self.extension_id)
 
     async def _check_update(
         self,
