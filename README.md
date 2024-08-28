@@ -2,6 +2,8 @@
 
 Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest.
 
+[![Test, build and create releases.](https://github.com/arenekosreal/crx-repo/actions/workflows/ci.yaml/badge.svg)](https://github.com/arenekosreal/crx-repo/actions/workflows/ci.yaml)
+
 ## Usage
 
 1. Get wheel from [Release](https://github.com/arenekosreal/crx-repo/releases) or build it yourself.
