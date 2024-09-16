@@ -5,7 +5,7 @@ from dataclasses import field
 from dataclasses import dataclass
 
 
-LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 @dataclass

@@ -5,6 +5,7 @@ import hashlib
 import logging
 from http import HTTPStatus
 from typing import TypeGuard
+from aiohttp import ClientError
 from pathlib import Path
 from urllib.parse import urlencode
 from aiohttp.client import ClientSession
@@ -37,7 +38,7 @@ class ExtensionDownloader:
         if self.proxy is not None:
             _logger.info("Using proxy %s to download extension...", self.proxy)
         self.CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
-        self.CHUNK_SIZE_BYTES = 10240
+        self.CHUNK_SIZE_BYTES = 1024 * 1024  # 1MB
 
     async def download_forever(self):
         """Download extension forever."""
@@ -46,6 +47,12 @@ class ExtensionDownloader:
                 await self._do_download()
                 await asyncio.sleep(self.interval)
             except asyncio.CancelledError:
+                _logger.debug("Cleaning old extensions...")
+                for p in sorted(
+                    self.cache_path.rglob("*.crx"),
+                    key=lambda p: p.stat().st_mtime,
+                )[:-1]:
+                    p.unlink()
                 _logger.debug(
                     "Stopping downloader for extension %s",
                     self.extension_id,
@@ -68,12 +75,21 @@ class ExtensionDownloader:
                 if response.content_length != int(size):
                     _logger.warning("Content-Length is not equals to size returned by API.")
                 hash_calculator = hashlib.sha256()
-                extension_path = self.cache_path / (version + ".crx")
+                extension_path = self.cache_path / (version + ".crx.part")
                 with extension_path.open("wb") as writer:
-                    async for chunk in response.content.iter_chunked(self.CHUNK_SIZE_BYTES):
-                        _logger.debug("Writing %s byte(s) into %s...", len(chunk), extension_path)
-                        hash_calculator.update(chunk)
-                        _ = writer.write(chunk)
+                    try:
+                        async for chunk in response.content.iter_chunked(self.CHUNK_SIZE_BYTES):
+                            chunk_size = writer.write(chunk)
+                            hash_calculator.update(chunk)
+                            _logger.debug(
+                                "Writing %s byte(s) into %s...",
+                                chunk_size,
+                                extension_path,
+                            )
+                    except ClientError as e:
+                        _logger.error("Failed to download because %s", e)
+                    except asyncio.TimeoutError:
+                        _logger.error("Failed to build because async operation timeout.")
                 _logger.debug("Checking checksums of extension %s...", self.extension_id)
                 sha256_hash = hash_calculator.hexdigest()
                 if sha256_hash != sha256:
@@ -87,6 +103,7 @@ class ExtensionDownloader:
                         "SHA256 checksum of %s match. Keeping file.",
                         self.extension_id,
                     )
+                    _ = extension_path.rename(extension_path.parent / extension_path.stem)
 
     async def _check_update(
         self,

@@ -21,7 +21,7 @@ from crx_repo.server import setup_server as _setup_server
 from crx_repo.config.parser import parse_config_async as _parse_config_async
 
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 _logger = logging.getLogger(__name__)

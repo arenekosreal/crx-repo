@@ -3,6 +3,7 @@
 import tomllib
 from typing import override
 from pathlib import Path
+from deserializer import deserialize
 from crx_repo.config.config import Config
 from crx_repo.config.parser.parser import PathOrStr
 from crx_repo.config.parser.parser import ConfigParser
@@ -17,7 +18,7 @@ class TomlConfigParser(ConfigParser):
         if path not in self._cache:
             content = path.read_text()
             config_raw = tomllib.loads(content)
-            self._cache[path] = TomlConfigParser.deserialize(
+            self._cache[path] = deserialize(
                 Config, config_raw,
                 lambda x: x.replace("-", "_").lower(),  # Kebab case to snake case
             )

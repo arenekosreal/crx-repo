@@ -1,5 +1,9 @@
 """Classes and functions to distribute manifest and crx files."""
 
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportAny=false
+
 import asyncio
 import hashlib
 import logging
@@ -12,6 +16,8 @@ from asyncio import Task
 from asyncio import CancelledError
 from asyncio import create_task
 from pathlib import Path
+from watchfiles import Change
+from watchfiles import awatch
 from urllib.parse import unquote
 from collections.abc import Generator
 from crx_repo.client import ExtensionDownloader
@@ -23,6 +29,7 @@ from crx_repo.config.config import TlsHttpListenConfig
 
 
 _logger = logging.getLogger(__name__)
+_cache: dict[str, set[str]] = {}
 
 
 def _get_ssl_context(tls: TlsHttpListenConfig | None) -> SSLContext | None:
@@ -60,6 +67,33 @@ def _get_filters(xs: list[str]) -> list[tuple[str, str]]:
     return filters
 
 
+def _watch_filter(change: Change, path: str) -> bool:
+    return change != Change.modified and path.endswith(".crx")
+
+
+async def _watch_cache(cache: Path):
+    try:
+        async for changes in awatch(cache, watch_filter=_watch_filter):
+            for (change, path) in changes:
+                _logger.debug("Updating cache for path %s", path)
+                p = Path(path)
+                extension_version = p.stem
+                extension_id = p.parent.stem
+                match change:
+                    case Change.added:
+                        if extension_id in _cache:
+                            _cache[extension_id].add(extension_version)
+                        else:
+                            _cache[extension_id] = {extension_version}
+                    case Change.deleted:
+                        if extension_id in _cache and extension_version in _cache[extension_id]:
+                            _cache[extension_id].remove(extension_version)
+                    case _:
+                        pass
+    except CancelledError:
+        _logger.info("Stopping watcher...")
+
+
 async def _block():
     sleep_seconds = 3600
     while True:
@@ -74,20 +108,27 @@ def _get_crx_info(
     cache_path: Path,
     filters: list[tuple[str, str]],
 ) -> Generator[tuple[str, tuple[str, int, str]], Any, None]:
-    if len(filters) > 0:
-        for crx, version in filters:
-            path = cache_path / crx / (version + ".crx")
-            if path.is_file():
-                content = path.read_bytes()
-                info = (version, len(content), hashlib.sha256(content).hexdigest())
-                yield crx, info
-    else:
-        for path in cache_path.glob("./*/*.crx"):
-            crx = path.parent.name
-            version = path.name.removesuffix(".crx")
+    if len(filters) == 0:
+        for crx, versions in _cache.items():
+            for version in versions:
+                filters.append((crx, version))
+
+    for crx, version in filters:
+        path = cache_path / crx / (version + ".crx")
+        if path.is_file():
             content = path.read_bytes()
             info = (version, len(content), hashlib.sha256(content).hexdigest())
             yield crx, info
+
+
+def _gen_cache(cache: Path):
+    for path in cache.glob("./*/*.crx"):
+        extension_version = path.stem
+        extension_id = path.parent.stem
+        if extension_id in _cache:
+            _cache[extension_id].add(extension_version)
+        else:
+            _cache[extension_id] = {extension_version}
 
 
 def setup_server(
@@ -107,7 +148,13 @@ def setup_server(
         extension_key = web.AppKey(extension, Task[None])
         extension_keys.append(extension_key)
 
+    watcher_key = web.AppKey("cache-watcher", Task[None])
+
     async def register_services(app: web.Application):
+        _gen_cache(cache_path)
+
+        app[watcher_key] = create_task(_watch_cache(cache_path))
+
         for extension_key in extension_keys:
             extension_id = config.extensions[extension_keys.index(extension_key)]
             downloader = ExtensionDownloader(
@@ -125,6 +172,11 @@ def setup_server(
             _ = app[extension_key].cancel()
             await app[extension_key]
 
+        _ = app[watcher_key].cancel()
+        await app[watcher_key]
+
+        _cache.clear()
+
     app.cleanup_ctx.append(register_services)
 
     prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
@@ -140,7 +192,7 @@ def setup_server(
         filters = _get_filters(xs)
 
         for crx, info in _get_crx_info(cache_path, filters):
-            app = root.find("./app[@appid='%s']".format())
+            app = root.find("./app[@appid='{}']".format(crx))
             if app is None:
                 app = Element("app")
                 app.attrib["appid"] = crx
