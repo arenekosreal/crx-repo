@@ -22,6 +22,7 @@ class UpdateInfo(NamedTuple):
     size: int | None
     version: str
 
+
 class ExtensionDownloader:
     """Extension downloader."""
     def __init__(
@@ -130,26 +131,27 @@ class ExtensionDownloader:
                 "id": self.extension_id,
             }) + "&uc"
         }
+        text = None
         async with session.get(
             self.CHROME_WEB_STORE_API_BASE,
             params=params,
             proxy=self.proxy,
         ) as response:
+
             try:
                 text = await response.text()
             except ClientError as e:
                 _logger.debug("Failed to get update response because %s.", e)
-                return None
             except asyncio.TimeoutError:
                 _logger.debug("Failed to get update response because async operation timeout.")
-                return None
             else:
                 if response.status != HTTPStatus.OK:
                     _logger.debug(
                         "Failed to send update check request, it returns `%s`",
                         text
                     )
-                    return None
+        if text is None:
+            return None
 
         element = fromstring(text)
         updatecheck = element.find("./*/{http://www.google.com/update2/response}updatecheck")
@@ -170,7 +172,6 @@ class ExtensionDownloader:
         if version is None:
             return None
         return UpdateInfo(url, sha256, size, version)
-
 
     def _requires_download(self, version: str) -> bool:
         current_version = self._get_current_version()
