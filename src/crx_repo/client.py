@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import logging
 from http import HTTPStatus
-from typing import TypeGuard
+from typing import NamedTuple
 from aiohttp import ClientError
 from pathlib import Path
 from urllib.parse import urlencode
@@ -14,6 +14,13 @@ from defusedxml.ElementTree import fromstring  # pyright: ignore[reportUnknownVa
 
 _logger = logging.getLogger(__name__)
 
+
+class UpdateInfo(NamedTuple):
+    """A named tuple stores update info from api."""
+    url: str
+    sha256: str | None
+    size: int | None
+    version: str
 
 class ExtensionDownloader:
     """Extension downloader."""
@@ -62,22 +69,25 @@ class ExtensionDownloader:
     async def _do_download(self):
         async with ClientSession() as session:
             update = await self._check_update(session)
-            if not ExtensionDownloader._is_updatecheck_valid(update):
+            if update is None:
                 return
-            url, sha256, size, version = update
-            if not self._requires_download(version):
+
+            if not self._requires_download(update.version):
                 _logger.info("No need to download extension %s.", self.extension_id)
                 return
-            async with session.get(url, proxy=self.proxy) as response:
+            async with session.get(update.url, proxy=self.proxy) as response:
                 if response.status != HTTPStatus.OK:
                     _logger.debug("Failed to download extension.")
                     return
+
                 if response.content_length is None:
                     _logger.warning("No Content-Length header found.")
-                elif response.content_length != int(size):
+                elif update.size is None:
+                    _logger.warning("No size is provided in api response.")
+                elif response.content_length != update.size:
                     _logger.warning("Content-Length is not equals to size returned by API.")
                 hash_calculator = hashlib.sha256()
-                extension_path = self.cache_path / (version + ".crx.part")
+                extension_path = self.cache_path / (update.version + ".crx.part")
                 with extension_path.open("wb") as writer:
                     try:
                         async for chunk in response.content.iter_chunked(self.CHUNK_SIZE_BYTES):
@@ -89,12 +99,12 @@ class ExtensionDownloader:
                                 extension_path,
                             )
                     except ClientError as e:
-                        _logger.error("Failed to download because %s", e)
+                        _logger.error("Failed to download because %s.", e)
                     except asyncio.TimeoutError:
                         _logger.error("Failed to build because async operation timeout.")
                 _logger.debug("Checking checksums of extension %s...", self.extension_id)
                 sha256_hash = hash_calculator.hexdigest()
-                if sha256_hash != sha256:
+                if sha256_hash != update.sha256:
                     _logger.error(
                         "SHA256 checksum of %s mismatch. Removing file.",
                         self.extension_id,
@@ -110,7 +120,7 @@ class ExtensionDownloader:
     async def _check_update(
         self,
         session: ClientSession,
-    ) -> tuple[str | None, str | None, str | None, str | None] | None:
+    ) -> UpdateInfo | None:
         # Get version
         params: dict[str, str] = {
             "response": "updatecheck",
@@ -125,34 +135,42 @@ class ExtensionDownloader:
             params=params,
             proxy=self.proxy,
         ) as response:
-            text = await response.text()
-            if response.status != HTTPStatus.OK:
-                _logger.debug(
-                    "Failed to send update check request, it returns `%s`",
-                    text
-                )
+            try:
+                text = await response.text()
+            except ClientError as e:
+                _logger.debug("Failed to get update response because %s.", e)
                 return None
-            element = fromstring(text)
-            updatecheck = element.find("./*/{http://www.google.com/update2/response}updatecheck")
-            if updatecheck is None:
-                _logger.debug("No update is found for extension %s.", self.extension_id)
+            except asyncio.TimeoutError:
+                _logger.debug("Failed to get update response because async operation timeout.")
                 return None
-            status = updatecheck.get("status")
-            if status != "ok":
-                _logger.debug("Update check status is not OK.")
-                return None
-            return (
-                updatecheck.get("codebase"),
-                updatecheck.get("hash_sha256"),
-                updatecheck.get("size"),
-                updatecheck.get("version"),
-            )
+            else:
+                if response.status != HTTPStatus.OK:
+                    _logger.debug(
+                        "Failed to send update check request, it returns `%s`",
+                        text
+                    )
+                    return None
 
-    @staticmethod
-    def _is_updatecheck_valid(
-        updatecheck: tuple[str | None, str | None, str | None, str | None] | None
-    ) -> TypeGuard[tuple[str, str, str, str]]:
-        return updatecheck is not None and all(item is not None for item in updatecheck)
+        element = fromstring(text)
+        updatecheck = element.find("./*/{http://www.google.com/update2/response}updatecheck")
+        if updatecheck is None:
+            _logger.debug("No update is found for extension %s.", self.extension_id)
+            return None
+        status = updatecheck.get("status")
+        if status != "ok":
+            _logger.debug("Update check status is not OK.")
+            return None
+        url = updatecheck.get("codebase")
+        if url is None:
+            return None
+        sha256 = updatecheck.get("hash_sha256")
+        size = updatecheck.get("size")
+        size = int(size) if size is not None else None
+        version = updatecheck.get("version")
+        if version is None:
+            return None
+        return UpdateInfo(url, sha256, size, version)
+
 
     def _requires_download(self, version: str) -> bool:
         current_version = self._get_current_version()
