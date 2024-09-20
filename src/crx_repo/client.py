@@ -105,21 +105,31 @@ class ExtensionDownloader:
                         _logger.error("Failed to build because async operation timeout.")
                 _logger.debug("Checking checksums of extension %s...", self.extension_id)
                 sha256_hash = hash_calculator.hexdigest()
-                if update.sha256 is not None and sha256_hash != update.sha256:
-                    _logger.error(
-                        "SHA256 checksum of %s mismatch. Removing file.",
-                        self.extension_id,
-                    )
-                    extension_path.unlink()
-                else:
-                    if update.sha256 is None:
-                        _logger.warning("No sha256 is provied for this extension file, still keeping file.")
-                    else:
-                        _logger.info(
-                            "SHA256 checksum of %s match. Keeping file.",
-                            self.extension_id,
-                        )
-                    _ = extension_path.rename(extension_path.parent / extension_path.stem)
+                self._after_extension_downloaded(update, sha256_hash, extension_path)
+
+    def _after_extension_downloaded(
+        self,
+        update: UpdateInfo,
+        sha256_hash: str,
+        extension_path: Path,
+    ):
+        if update.sha256 is not None and sha256_hash != update.sha256:
+            _logger.error(
+                "SHA256 checksum of %s mismatch. Removing file.",
+                self.extension_id,
+            )
+            extension_path.unlink()
+        else:
+            if update.sha256 is None:
+                _logger.warning(
+                    "No sha256 is provied for this extension file, still keeping file."
+                )
+            else:
+                _logger.info(
+                    "SHA256 checksum of %s match. Keeping file.",
+                    self.extension_id,
+                )
+            _ = extension_path.rename(extension_path.parent / extension_path.stem)
 
     async def _check_update(
         self,
