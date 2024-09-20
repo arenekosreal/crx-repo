@@ -137,7 +137,6 @@ class ExtensionDownloader:
             params=params,
             proxy=self.proxy,
         ) as response:
-
             try:
                 text = await response.text()
             except ClientError as e:
@@ -150,6 +149,7 @@ class ExtensionDownloader:
                         "Failed to send update check request, it returns `%s`",
                         text
                     )
+                    text = None
         if text is None:
             return None
 
