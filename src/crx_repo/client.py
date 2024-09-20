@@ -105,17 +105,20 @@ class ExtensionDownloader:
                         _logger.error("Failed to build because async operation timeout.")
                 _logger.debug("Checking checksums of extension %s...", self.extension_id)
                 sha256_hash = hash_calculator.hexdigest()
-                if sha256_hash != update.sha256:
+                if update.sha256 is not None and sha256_hash != update.sha256:
                     _logger.error(
                         "SHA256 checksum of %s mismatch. Removing file.",
                         self.extension_id,
                     )
                     extension_path.unlink()
                 else:
-                    _logger.info(
-                        "SHA256 checksum of %s match. Keeping file.",
-                        self.extension_id,
-                    )
+                    if update.sha256 is None:
+                        _logger.warning("No sha256 is provied for this extension file, still keeping file.")
+                    else:
+                        _logger.info(
+                            "SHA256 checksum of %s match. Keeping file.",
+                            self.extension_id,
+                        )
                     _ = extension_path.rename(extension_path.parent / extension_path.stem)
 
     async def _check_update(
