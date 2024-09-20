@@ -180,8 +180,14 @@ class ExtensionDownloader:
         versions = version.split(".")
         max_count = max(len(current_versions), len(versions))
         for i in range(max_count):
-            current_version_value = int(current_versions[i]) if len(current_versions) > i else 0
-            versions_value = int(versions[i]) if len(versions) > i else 0
+            try:
+                current_version_value = int(current_versions[i]) if len(current_versions) > i else 0
+            except ValueError:
+                current_version_value = 0
+            try:
+                versions_value = int(versions[i]) if len(versions) > i else 0
+            except ValueError:
+                versions_value = 0
             if versions_value > current_version_value:
                 return True
         return False
