@@ -46,18 +46,18 @@ class ExtensionDownloader:
             try:
                 await self._do_download()
                 await asyncio.sleep(self.interval)
-            except asyncio.CancelledError:
-                _logger.debug("Cleaning old extensions...")
-                for p in sorted(
-                    self.cache_path.rglob("*.crx"),
-                    key=lambda p: p.stat().st_mtime,
-                )[:-1]:
-                    p.unlink()
-                _logger.debug(
-                    "Stopping downloader for extension %s",
-                    self.extension_id,
-                )
+            except (asyncio.CancelledError, KeyboardInterrupt):
                 break
+        _logger.debug("Cleaning old extensions...")
+        for p in sorted(
+            self.cache_path.rglob("*.crx"),
+            key=lambda p: p.stat().st_mtime,
+        )[:-1]:
+            p.unlink()
+        _logger.debug(
+            "Stopping downloader for extension %s",
+            self.extension_id,
+        )
 
     async def _do_download(self):
         async with ClientSession() as session:
@@ -72,7 +72,9 @@ class ExtensionDownloader:
                 if response.status != HTTPStatus.OK:
                     _logger.debug("Failed to download extension.")
                     return
-                if response.content_length != int(size):
+                if response.content_length is None:
+                    _logger.warning("No Content-Length header found.")
+                elif response.content_length != int(size):
                     _logger.warning("Content-Length is not equals to size returned by API.")
                 hash_calculator = hashlib.sha256()
                 extension_path = self.cache_path / (version + ".crx.part")
