@@ -219,6 +219,7 @@ def _get_handler(
             update_check = Element("updatecheck")
             update_check.attrib["codebase"] = absolute_base + extension_path
             update_check.attrib["version"] = info.version
+            update_check.attrib["status"] = "ok"
             update_check.attrib["size"] = str(info.size)
             update_check.attrib["hash_sha256"] = info.hash_sha256
             app.append(update_check)
