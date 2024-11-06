@@ -7,7 +7,7 @@ dependencies = [
     "aiohttp<4.0.0,>=3.9.3",
     "defusedxml>=0.7.1",
     "watchfiles>=0.24.0",
-    "deserializer @ git+https://github.com/arenekosreal/deserializer.git",
+    "pydantic>=2.9.2",
 ]
 name = "crx-repo"
 description = "Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."
