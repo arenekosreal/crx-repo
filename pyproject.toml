@@ -2,7 +2,7 @@
 authors = [
     {name = "Zhang Hua", email = "zhanghua.00@qq.com"},
 ]
-requires-python = "<3.13,>=3.12"
+requires-python = "<3.14,>=3.12"
 dependencies = [
     "aiohttp<4.0.0,>=3.9.3",
     "defusedxml>=0.7.1",
@@ -25,16 +25,16 @@ uvloop = [
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
+[dependency-groups]
+dev = [
+    "pytest-aiohttp<2.0.0,>=1.0.5",
+    "pytest-cov>=6.0.0",
+    "pytest-ruff<1.0.0,>=0.3.1",
+]
+
 [tool.pdm.version]
 source = "file"
 path = "src/crx_repo/__init__.py"
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "pytest-aiohttp<2.0.0,>=1.0.5",
-    "pytest-cov<6.0.0,>=5.0.0",
-    "pytest-ruff<1.0.0,>=0.3.1",
-]
 
 [tool.basedpyright]
 venvPath="."
