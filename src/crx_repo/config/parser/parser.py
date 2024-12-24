@@ -12,7 +12,7 @@ from crx_repo.config.config import Config
 
 
 type PathOrStr = Path | str
-type ConfigJsonType = dict[str, str | int | None | ConfigJsonType]
+type ConfigJsonType = dict[str, str | int | ConfigJsonType | None]
 type KeyConverterType = Callable[[str], str] | None
 
 _logger = logging.getLogger(__name__)

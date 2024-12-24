@@ -28,12 +28,12 @@ _logger = logging.getLogger(__name__)
 
 
 def _setup_logger(logger: logging.Logger = _logger):
-    _fmt = logging.Formatter("%(asctime)s-%(levelname)s-%(message)s", "%Y-%m-%d %H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s-%(levelname)s-%(message)s", "%Y-%m-%d %H:%M:%S")
     if len(logger.handlers) == 0:
         logger.addHandler(logging.StreamHandler())
     for handler in logger.handlers:
         handler.setLevel(logger.level)
-        handler.setFormatter(_fmt)
+        handler.setFormatter(fmt)
 
 
 def _parse_args() -> Namespace:
