@@ -1,56 +1,65 @@
 """Classes to deserialize config."""
 
 from typing import Literal
-from dataclasses import field
-from dataclasses import dataclass
+from typing import ClassVar
+from pathlib import Path
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import PositiveInt
+from pydantic.alias_generators import to_snake
 
 
 type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
-@dataclass
-class TlsHttpListenConfig:
+class TlsHttpListenConfig(BaseModel):
     """HTTPS config."""
-    cert: str = "crx-repo.crt"
+
+    cert: Path = Path("crx-repo.crt")
     key: str | None = None
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
-@dataclass
-class UnixListenConfig:
+class UnixListenConfig(BaseModel):
     """Unix domain socket config."""
-    path: str = "/run/crx-repo/crx-repo.socket"
+
+    path: Path = Path("/run/crx-repo/crx-repo.socket")
     permission: int = 666
     tls: TlsHttpListenConfig | None = None
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
-@dataclass
-class TcpListenConfig:
+class TcpListenConfig(BaseModel):
     """TCP config."""
+
     address: str = "127.0.0.1"
-    port: int = 8888
+    port: PositiveInt = 8888
     tls: TlsHttpListenConfig | None = None
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
-@dataclass
-class ListenConfig:
+class ListenConfig(BaseModel):
     """Listen config."""
+
     tcp: TcpListenConfig | None = None
     unix: UnixListenConfig | None = None
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     """Main runtime config."""
+
     log_level: LogLevelType = "INFO"
     manifest_path: str = "/updates.xml"
     prefix: str = "/crx-repo"
     base: str = "http://localhost:8888"
     proxy: str | None = None
     version: str = "128.0"
-    interval: int = 10800
-    extensions: list[str] = field(default_factory=list)
+    interval: PositiveInt = 10800
+    extensions: list[str] = []
     cache_dir: str = "cache"
-    listen: ListenConfig = field(default_factory=ListenConfig)
+    listen: ListenConfig = ListenConfig()
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
 __all__ = ["Config"]

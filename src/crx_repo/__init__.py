@@ -43,7 +43,7 @@ def _setup_logger(logger: logging.Logger = _logger):
         handler.setFormatter(fmt)
 
 
-async def _main_async(config_path: str, log_level_in_arg: LogLevelType):
+async def _main_async(config_path: Path, log_level_in_arg: LogLevelType):
     config = await _parse_config_async(config_path)
     if log_level_in_arg != config.log_level:
         _logger.setLevel(config.log_level)
@@ -103,4 +103,4 @@ def __main(  # pyright: ignore[reportUnusedFunction]
     _setup_logger()
     if uvloop:
         _logger.info("Using uvloop as async event loop.")
-    _run_async(_main_async(str(config), log_level))
+    _run_async(_main_async(config, log_level))

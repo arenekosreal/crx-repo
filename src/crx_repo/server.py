@@ -34,6 +34,7 @@ from crx_repo.config.config import TlsHttpListenConfig
 
 class ExtensionInfo(NamedTuple):
     """A named tuple stores metainfo for an .crx file."""
+
     extension_id: str
     version: str
     size: int
@@ -105,7 +106,7 @@ def _watch_filter(change: Change, path: str) -> bool:
 async def _watch_cache(cache: Path):
     try:
         async for changes in awatch(cache, watch_filter=_watch_filter):
-            for (change, path) in changes:
+            for change, path in changes:
                 _logger.debug("Updating cache for path %s", path)
                 p = Path(path)
                 extension_version = p.stem
@@ -116,11 +117,13 @@ async def _watch_cache(cache: Path):
                             extension_id,
                             extension_version,
                             p.stat().st_size,
-                            hashlib.sha256(p.read_bytes()).hexdigest()
+                            hashlib.sha256(p.read_bytes()).hexdigest(),
                         )
                         _cache.add(info)
                     case Change.deleted:
-                        for info in _iter_extension_info(extension_id, extension_version):
+                        for info in _iter_extension_info(
+                            extension_id, extension_version
+                        ):
                             _cache.remove(info)
                     case _:
                         pass
@@ -158,7 +161,7 @@ def _get_cleanup_ctx_callback(
     config: Config,
     cache_path: Path,
     watcher_key: web.AppKey[Task[None]],
-    extension_keys: list[web.AppKey[Task[None]]]
+    extension_keys: list[web.AppKey[Task[None]]],
 ) -> Callable[[web.Application], AsyncIterator[None]]:
     async def callback(app: web.Application):
         _gen_cache(cache_path)
@@ -168,11 +171,7 @@ def _get_cleanup_ctx_callback(
         for extension_key in extension_keys:
             extension_id = config.extensions[extension_keys.index(extension_key)]
             downloader = ExtensionDownloader(
-                extension_id,
-                config.interval,
-                config.version,
-                cache_path,
-                config.proxy
+                extension_id, config.interval, config.version, cache_path, config.proxy
             )
             app[extension_key] = create_task(downloader.download_forever())
 
@@ -186,13 +185,13 @@ def _get_cleanup_ctx_callback(
         await app[watcher_key]
 
         _cache.clear()
+
     return callback
 
 
 def _get_handler(
-    config: Config,
-    prefix: str
-) -> Callable[[web.Request], Coroutine[Any, Any, web.Response]]:
+    config: Config, prefix: str
+) -> Callable[[web.Request], Coroutine[Any, Any, web.Response]]:  # pyright: ignore[reportExplicitAny]
     async def handler(request: web.Request) -> web.Response:
         absolute_base = config.base + prefix + "/"
         root = Element("gupdate")
@@ -228,8 +227,9 @@ def _get_handler(
         return web.Response(
             body=xml + "\n".encode("utf-8"),
             content_type="application/xml",
-            charset="utf-8"
+            charset="utf-8",
         )
+
     return handler
 
 
@@ -252,13 +252,18 @@ def setup_server(
 
     watcher_key = web.AppKey("cache-watcher", Task[None])
 
-    callback = _get_cleanup_ctx_callback(config, cache_path, watcher_key, extension_keys)
+    callback = _get_cleanup_ctx_callback(
+        config, cache_path, watcher_key, extension_keys
+    )
 
     app.cleanup_ctx.append(callback)
 
     prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
-    manifest_path = config.manifest_path if config.manifest_path.startswith("/") else \
-        "/" + config.manifest_path
+    manifest_path = (
+        config.manifest_path
+        if config.manifest_path.startswith("/")
+        else "/" + config.manifest_path
+    )
 
     handler = _get_handler(config, prefix)
 
@@ -275,7 +280,7 @@ def setup_server(
 async def run_app(
     app: web.Application,
     tcp: tuple[str | None, int | None, TlsHttpListenConfig | None],
-    unix: tuple[str | None, TlsHttpListenConfig | None],
+    unix: tuple[Path | None, TlsHttpListenConfig | None],
 ):
     """Run the WebApplication and block forever."""
     host, port, tls_tcp = tcp
@@ -289,7 +294,7 @@ async def run_app(
             "Listening on %s://%s:%s",
             "https" if tls_tcp is not None else "http",
             host,
-            port
+            port,
         )
         sites.append(site)
     if path is not None:
