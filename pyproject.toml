@@ -1,6 +1,6 @@
 [project]
 authors = [
-    {name = "Zhang Hua", email = "zhanghua.00@qq.com"},
+    {name = "arenekosreal", email = "17194552+arenekosreal@users.noreply.github.com"},
 ]
 requires-python = "<3.14,>=3.12"
 dependencies = [
