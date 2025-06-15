@@ -23,12 +23,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup pdm
-        uses: pdm-project/setup-pdm@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
       - name: Install dependencies
-        run: pdm install --dev ${{ matrix.os != 'windows-latest' && '--group=uvloop' || '' }}
+        run: uv sync --dev
       - name: Test project
-        run: pdm run pytest
+        run: uv run pytest
 
   build-and-release:
     name: Build project and release if needed
@@ -39,12 +39,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup pdm
-        uses: pdm-project/setup-pdm@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
       - name: Install dependencies
-        run: pdm install --dev --group=uvloop
+        run: uv sync --dev
       - name: Build project
-        run: pdm build
+        run: uv build
       - name: Release
         if: github.ref_type  == 'tag'
         uses: softprops/action-gh-release@v2

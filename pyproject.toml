@@ -22,8 +22,8 @@ uvloop = [
     "uvloop>=0.20.0",
 ]
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -32,8 +32,10 @@ dev = [
     "pytest-ruff<1.0.0,>=0.3.1",
 ]
 
-[tool.pdm.version]
-source = "file"
+[tool.uv]
+required-version = ">=0.7.13"
+
+[tool.hatch.version]
 path = "src/crx_repo/__init__.py"
 
 [tool.basedpyright]
