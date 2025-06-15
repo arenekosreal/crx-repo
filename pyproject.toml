@@ -8,6 +8,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "watchfiles>=0.24.0",
     "pydantic>=2.9.2",
+    "typer>=0.16.0",
 ]
 name = "crx-repo"
 description = "Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."
@@ -105,8 +106,6 @@ select = [
     "RUF", # Ruff specific
 ]
 ignore = [
-    "ANN101", # type for self
-    "ANN102", # type for cls
     "PLW0603", # global statements
     "FIX002", # todo is not critical
     "COM812",
