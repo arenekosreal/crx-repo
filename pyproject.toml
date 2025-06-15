@@ -21,9 +21,10 @@ crx-repo = "crx_repo:main"
 uvloop = [
     "uvloop>=0.20.0",
 ]
+
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
@@ -35,8 +36,8 @@ dev = [
 [tool.uv]
 required-version = ">=0.7.13"
 
-[tool.hatch.version]
-path = "src/crx_repo/__init__.py"
+[tool.setuptools.dynamic]
+version.attr = "crx_repo.__version__"
 
 [tool.basedpyright]
 venvPath="."
