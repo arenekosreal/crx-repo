@@ -1,87 +1,97 @@
 """Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."""
 
-import logging
+__version__ = "0.3.0"
+
+
+from rich import print as rich_print
 from typer import Exit
 from typer import Typer
 from typer import Option
 from typing import Annotated
-from aiohttp import web
+from logging import Formatter
+from logging import StreamHandler
+from logging import getLogger
+from logging import DEBUG
 from pathlib import Path
-
+from aiohttp.web import AppRunner
+from aiohttp.web import TCPSite
+from aiohttp.web import UnixSite
+from asyncio import sleep
+from asyncio import CancelledError
 
 try:
-    from uvloop import run as _run_async
-
-    uvloop = True
+    from uvloop import run
 except ImportError:
-    from asyncio import run as _run_async
+    from asyncio import run
 
-    uvloop = False
-
-from crx_repo.server import run_app as _run_app
-from crx_repo.server import setup_server as _setup_server
-from crx_repo.config.config import LogLevelType
-from crx_repo.config.parser import parse_config_async as _parse_config_async
-
-
-__version__ = "0.2.1"
+from .toml import TomlConfigParser
+from .config import Config
+from .config import ConfigParser
+from .config import LogLevelType
+from .server import setup
 
 
-_logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 main = Typer(help=__doc__)
 
 
-def _setup_logger(logger: logging.Logger = _logger):
-    fmt = logging.Formatter(
-        "%(asctime)s-%(levelname)s-%(message)s",
-        "%Y-%m-%d %H:%M:%S",
-    )
-    if len(logger.handlers) == 0:
-        logger.addHandler(logging.StreamHandler())
-    for handler in logger.handlers:
-        handler.setLevel(logger.level)
-        handler.setFormatter(fmt)
+async def __parse_async(config: Path) -> Config:
+    parsers: list[ConfigParser] = [TomlConfigParser()]
+    for parser in parsers:
+        try:
+            config_object = await parser.parse_async(config)
+            if config_object is not None:
+                return config_object
+        except Exception as e:
+            logger.debug(
+                "Failed to parse %s with %s because %s",
+                config,
+                parser.__class__.__name__,
+                e,
+            )
+    raise RuntimeError("Unable to parse config %s" % config) from None
 
 
-async def _main_async(config_path: Path, log_level_in_arg: LogLevelType):
-    config = await _parse_config_async(config_path)
-    if log_level_in_arg != config.log_level:
-        _logger.setLevel(config.log_level)
-        _setup_logger()
-    if config.listen.tcp is None and config.listen.unix is None:
-        _logger.critical("No valid listen config found.")
-        raise RuntimeError
-    app = _setup_server(config, _logger.level == logging.DEBUG)
-    tcp = config.listen.tcp
-    host = tcp.address if tcp is not None else None
-    port = tcp.port if tcp is not None else None
-    unix = config.listen.unix
-    path = unix.path if unix is not None else None
-    permission = unix.permission if unix is not None else None
-    tls_tcp = tcp.tls if tcp is not None else None
-    tls_unix = unix.tls if unix is not None else None
-
-    if path is not None and permission is not None:
-        permission = int("0o%s".format(), base=8)
-
-        async def set_permission(_: web.Application):
-            _logger.debug("Setting permission of socket to %s", permission)
-            Path(path).chmod(permission)
-            yield
-
-        app.cleanup_ctx.append(set_permission)
-
-    await _run_app(app, (host, port, tls_tcp), (path, tls_unix))
+async def __launch_async(config: Path):
+    deserialized_config = await __parse_async(config)
+    app = setup(deserialized_config, logger.level == DEBUG)
+    runner = AppRunner(app)
+    await runner.setup()
+    if deserialized_config.listen.tcp is not None:
+        site = TCPSite(
+            runner,
+            deserialized_config.listen.tcp.address,
+            deserialized_config.listen.tcp.port,
+            ssl_context=deserialized_config.listen.tcp.tls.ssl_context
+            if deserialized_config.listen.tcp.tls is not None
+            else None,
+        )
+        await site.start()
+    if deserialized_config.listen.unix is not None:
+        site = UnixSite(
+            runner,
+            deserialized_config.listen.unix.path,
+            ssl_context=deserialized_config.listen.unix.tls.ssl_context
+            if deserialized_config.listen.unix.tls is not None
+            else None,
+        )
+        await site.start()
+    try:
+        while True:
+            await sleep(3600)
+    except CancelledError:
+        logger.info("Exiting...")
+    await runner.cleanup()
 
 
 def __version(value: bool):
     if value:
-        print(__version__)  # noqa: T201
+        rich_print(__version)
         raise Exit
 
 
 @main.command()
-def __main(  # pyright: ignore[reportUnusedFunction]
+def _(
     config: Annotated[Path, Option(help="Config file path.")],
     log_level: Annotated[
         LogLevelType,
@@ -99,8 +109,14 @@ def __main(  # pyright: ignore[reportUnusedFunction]
         ),
     ] = False,
 ):
-    _logger.setLevel(log_level)
-    _setup_logger()
-    if uvloop:
-        _logger.info("Using uvloop as async event loop.")
-    _run_async(_main_async(config, log_level))
+    logger.setLevel(log_level)
+    formatter = Formatter(
+        "%(asctime)s-%(levelname)s-%(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
+    if len(logger.handlers) == 0:
+        logger.addHandler(StreamHandler())
+    for handler in logger.handlers:
+        handler.setFormatter(formatter)
+        handler.setLevel(log_level)
+    run(__launch_async(config))

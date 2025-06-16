@@ -5,10 +5,12 @@ authors = [
 requires-python = "<3.14,>=3.12"
 dependencies = [
     "aiohttp<4.0.0,>=3.9.3",
-    "defusedxml>=0.7.1",
     "watchfiles>=0.24.0",
     "pydantic>=2.9.2",
     "typer>=0.16.0",
+    "pydantic-xml>=2.17.1",
+    "aiofiles>=24.1.0",
+    "lxml>=5.4.0",
 ]
 name = "crx-repo"
 description = "Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."
@@ -119,15 +121,17 @@ ignore = [
 "tests/**.py" = ["S101"]
 # async generator is required by aiohttp
 "src/crx_repo/__init__.py" = ["RUF029"]
-# xml.etree.ElementTree is used for creating xml instead parsing
 # async generator is required by aiohttp
-"src/crx_repo/server.py" = ["S405", "RUF029"]
+"src/crx_repo/server.py" = ["RUF029"]
 
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 mypy-init-return = true
 suppress-dummy-args = true
 suppress-none-returning = true
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
 force-single-line = true

@@ -1,212 +1,240 @@
-"""Classes and functions to download crx from Google Web Store."""
-
-import asyncio
-import hashlib
-import logging
-from http import HTTPStatus
-from typing import NamedTuple
+from abc import ABC
+from abc import abstractmethod
+from aiohttp import ClientSession
 from aiohttp import ClientError
+from aiohttp.web import HTTPOk
+from asyncio import TimeoutError as AsyncTimeoutError
+from asyncio import sleep
+from asyncio import CancelledError
+from aiofiles import open as aioopen
+from logging import getLogger
 from pathlib import Path
+from typing import override
+from typing import final
+from pydantic import PositiveInt
+from pydantic import ValidationError
+from hashlib import sha256
 from urllib.parse import urlencode
-from aiohttp.client import ClientSession
-from defusedxml.ElementTree import fromstring  # pyright: ignore[reportUnknownVariableType]
+from enum import Enum
+from .cache import Cache
+from .manifest import GUpdate
+from .manifest import UpdateCheck
 
 
-_logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
-class UpdateInfo(NamedTuple):
-    """A named tuple stores update info from api."""
-    url: str
-    sha256: str | None
-    size: int | None
-    version: str
+class VersionComparationResult(Enum):
+    LessThan = -1
+    Equal = 0
+    GreaterThan = 1
 
 
-class ExtensionDownloader:
-    """Extension downloader."""
+def _try_get_int(strings: list[str], index: int, default: int) -> int:
+    if len(strings) >= index + 1:
+        try:
+            return int(strings[index])
+        except ValueError:
+            return default
+    return default
+
+
+def _compare_version_string(a: str, b: str) -> VersionComparationResult:
+    logger.debug("Comparing %s and %s...", a, b)
+    splited_a = a.split(".")
+    splited_b = b.split(".")
+    max_component_count = max(len(splited_a), len(splited_b))
+    for i in range(max_component_count):
+        a_value = _try_get_int(splited_a, i, 0)
+        b_value = _try_get_int(splited_b, i, 0)
+        logger.debug("Comparing part %d and %d...", a_value, b_value)
+        if a_value > b_value:
+            return VersionComparationResult.GreaterThan
+        if a_value < b_value:
+            return VersionComparationResult.LessThan
+    return VersionComparationResult.Equal
+
+
+class ExtensionDownloader(ABC):
+    CHUNK_SIZE_BYTES: int = 1024 * 1024  # 1MB
+
+    @final
     def __init__(
         self,
         extension_id: str,
-        interval: int,
-        chromium_version: str,
-        cache_path: Path,
+        interval: PositiveInt,
+        chrome_version: str,
         proxy: str | None,
+        cache: Cache,
     ):
-        """Initialize ExtensionDownloader with arguments given."""
-        self.extension_id = extension_id
-        self.interval = interval
-        self.chromium_version = chromium_version
-        self.cache_path = cache_path / extension_id
-        if not self.cache_path.is_dir():
-            if self.cache_path.exists():
-                self.cache_path.unlink()
-            self.cache_path.mkdir(parents=True)
-        self.proxy = proxy
-        if self.proxy is not None:
-            _logger.info("Using proxy %s to download extension...", self.proxy)
-        self.CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
-        self.CHUNK_SIZE_BYTES = 1024 * 1024  # 1MB
+        self._extension_id: str = extension_id
+        self.__interval: PositiveInt = interval
+        self._chrome_version: str = chrome_version
+        self._proxy: str | None = proxy
+        self.__cache: Cache = cache
+        if self._proxy is not None:
+            logger.debug(
+                "Use proxy %s to download extension %s.",
+                self._proxy,
+                self._extension_id,
+            )
+
+    async def __download(
+        self,
+        url: str,
+        path: Path,
+        session: ClientSession,
+        size: int | None = None,
+        sha256_checksum: str | None = None,
+    ):
+        async with session.get(url, proxy=self._proxy) as response:
+            if response.status != HTTPOk.status_code:
+                logger.error(
+                    "Failed to download extension because server returns %d",
+                    response.status,
+                )
+                return
+            check_size = response.content_length is not None or size is not None
+            if check_size and response.content_length != size:
+                logger.warning(
+                    "Content-Length(%s) is not equal to size obtained from server(%s).",
+                    response.content_length,
+                    size,
+                )
+            hash_calculator = sha256()
+            temp_crx = path.with_name(path.name + ".part")
+            async with aioopen(temp_crx, "wb") as writer:
+                try:
+                    async for chunk in response.content.iter_chunked(
+                        self.CHUNK_SIZE_BYTES
+                    ):
+                        chunk_size = await writer.write(chunk)
+                        hash_calculator.update(chunk)
+                        logger.debug("Writing %d byte(s) into %s...", chunk_size, path)
+                except (ClientError, AsyncTimeoutError) as ce:
+                    logger.error(
+                        "Failed to download %s because %s.", self._extension_id, ce
+                    )
+            if sha256_checksum is not None:
+                logger.debug("Checking sha256 of downloaded file...")
+                actual_sha256_checksum = hash_calculator.hexdigest()
+                if sha256_checksum != actual_sha256_checksum:
+                    logger.error("Checksum of %s mismatch.", self._extension_id)
+                    logger.error("Wants: %s", sha256_checksum)
+                    logger.error("Actual: %s", actual_sha256_checksum)
+                    logger.error("Removing downloaded file...")
+                    temp_crx.unlink()
+                    return
+                else:
+                    logger.debug("Checksum of %s match.", self._extension_id)
+            else:
+                logger.warning("No sha256 checksum is provided, skip checking...")
+            _ = temp_crx.replace(path)
 
     async def download_forever(self):
-        """Download extension forever."""
-        while True:
-            try:
-                await self._do_download()
-                await asyncio.sleep(self.interval)
-            except (asyncio.CancelledError, KeyboardInterrupt):
-                break
-        _logger.debug("Cleaning old extensions...")
-        for p in sorted(
-            self.cache_path.rglob("*.crx"),
-            key=lambda p: p.stat().st_mtime,
-        )[:-1]:
-            p.unlink()
-        _logger.debug(
-            "Stopping downloader for extension %s",
-            self.extension_id,
-        )
+        try:
+            while True:
+                async with ClientSession() as session:
+                    extension_files = sorted(
+                        self.__cache.extension_files(self._extension_id),
+                        key=lambda p: p.stat().st_mtime,
+                    )
 
-    async def _do_download(self):
-        async with ClientSession() as session:
-            update = await self._check_update(session)
-            if update is None:
-                return
-
-            if not self._requires_download(update.version):
-                _logger.info("No need to download extension %s.", self.extension_id)
-                return
-            async with session.get(update.url, proxy=self.proxy) as response:
-                if response.status != HTTPStatus.OK:
-                    _logger.debug("Failed to download extension.")
-                    return
-
-                if response.content_length is None:
-                    _logger.warning("No Content-Length header found.")
-                elif update.size is None:
-                    _logger.warning("No size is provided in api response.")
-                elif response.content_length != update.size:
-                    _logger.warning("Content-Length is not equals to size returned by API.")
-                hash_calculator = hashlib.sha256()
-                extension_path = self.cache_path / (update.version + ".crx.part")
-                with extension_path.open("wb") as writer:
-                    try:
-                        async for chunk in response.content.iter_chunked(self.CHUNK_SIZE_BYTES):
-                            chunk_size = writer.write(chunk)
-                            hash_calculator.update(chunk)
-                            _logger.debug(
-                                "Writing %s byte(s) into %s...",
-                                chunk_size,
-                                extension_path,
-                            )
-                    except ClientError as e:
-                        _logger.error("Failed to download because %s.", e)
-                    except asyncio.TimeoutError:
-                        _logger.error("Failed to build because async operation timeout.")
-                _logger.debug("Checking checksums of extension %s...", self.extension_id)
-                sha256_hash = hash_calculator.hexdigest()
-                self._after_extension_downloaded(update, sha256_hash, extension_path)
-
-    def _after_extension_downloaded(
-        self,
-        update: UpdateInfo,
-        sha256_hash: str,
-        extension_path: Path,
-    ):
-        if update.sha256 is not None and sha256_hash != update.sha256:
-            _logger.error(
-                "SHA256 checksum of %s mismatch. Removing file.",
-                self.extension_id,
+                    update = await self._check_updates(
+                        extension_files[-1].stem if len(extension_files) > 0 else None,
+                        session,
+                    )
+                    if update is not None:
+                        path = self.__cache.extension_path(
+                            self._extension_id, update.version
+                        )
+                        await self.__download(
+                            update.codebase,
+                            path,
+                            session,
+                            update.size,
+                            update.hash_sha256,
+                        )
+                await sleep(self.__interval)
+        except (CancelledError, KeyboardInterrupt):
+            logger.debug(
+                "Exitting downloader for extension %s...",
+                self._extension_id,
             )
-            extension_path.unlink()
-        else:
-            if update.sha256 is None:
-                _logger.warning(
-                    "No sha256 is provied for this extension file, still keeping file."
-                )
-            else:
-                _logger.info(
-                    "SHA256 checksum of %s match. Keeping file.",
-                    self.extension_id,
-                )
-            _ = extension_path.rename(extension_path.parent / extension_path.stem)
 
-    async def _check_update(
+    @abstractmethod
+    async def _check_updates(
+        self, latest_version: str | None, session: ClientSession
+    ) -> UpdateCheck | None: ...
+
+
+@final
+class ChromeExtensionDownloader(ExtensionDownloader):
+    CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
+
+    @override
+    async def _check_updates(
         self,
+        latest_version: str | None,
         session: ClientSession,
-    ) -> UpdateInfo | None:
-        # Get version
-        params: dict[str, str] = {
+    ) -> UpdateCheck | None:
+        x = {"id": self._extension_id}
+        params = {
             "response": "updatecheck",
             "acceptformat": "crx2,crx3",
-            "prodversion": self.chromium_version,
-            "x": urlencode({
-                "id": self.extension_id,
-            }) + "&uc"
+            "prodversion": self._chrome_version,
+            "x": urlencode(x) + "&uc",  # No `updatecheck` without `&uc`
         }
-        text = None
         async with session.get(
             self.CHROME_WEB_STORE_API_BASE,
             params=params,
-            proxy=self.proxy,
+            proxy=self._proxy,
         ) as response:
+            logger.debug("Sending url %s...", response.url)
+            if response.status != HTTPOk.status_code:
+                logger.error(
+                    "Failed to check extension update because server returns %d.",
+                    response.status,
+                )
+                return None
             try:
-                text = await response.text()
-            except ClientError as e:
-                _logger.debug("Failed to get update response because %s.", e)
-            except asyncio.TimeoutError:
-                _logger.debug("Failed to get update response because async operation timeout.")
-            else:
-                if response.status != HTTPStatus.OK:
-                    _logger.debug(
-                        "Failed to send update check request, it returns `%s`",
-                        text
-                    )
-                    text = None
-        if text is None:
+                text = await response.read()
+            except (ClientError, AsyncTimeoutError) as ce:
+                logger.error("Failed to get response text because %s.", ce)
+                return
+        logger.debug("Parsing XML response:")
+        logger.debug("%s", text)
+        try:
+            gupdate = GUpdate.from_xml(text)
+        except ValidationError as ve:
+            logger.error("Failed to deserialize response because %s.", ve.json())
             return None
-
-        element = fromstring(text)
-        updatecheck = element.find("./*/{http://www.google.com/update2/response}updatecheck")
-        if updatecheck is None:
-            _logger.debug("No update is found for extension %s.", self.extension_id)
-            return None
-        status = updatecheck.get("status")
-        if status != "ok":
-            _logger.debug("Update check status is not OK.")
-            return None
-        url = updatecheck.get("codebase")
-        if url is None:
-            return None
-        sha256 = updatecheck.get("hash_sha256")
-        size = updatecheck.get("size")
-        size = int(size) if size is not None else None
-        version = updatecheck.get("version")
-        if version is None:
-            return None
-        return UpdateInfo(url, sha256, size, version)
-
-    def _requires_download(self, version: str) -> bool:
-        current_version = self._get_current_version()
-        if current_version is None:
-            return True
-        current_versions = current_version.split(".")
-        versions = version.split(".")
-        max_count = max(len(current_versions), len(versions))
-        for i in range(max_count):
-            try:
-                current_version_value = int(current_versions[i]) if len(current_versions) > i else 0
-            except ValueError:
-                current_version_value = 0
-            try:
-                versions_value = int(versions[i]) if len(versions) > i else 0
-            except ValueError:
-                versions_value = 0
-            if versions_value > current_version_value:
-                return True
-        return False
-
-    def _get_current_version(self) -> str | None:
-        paths = self.cache_path.glob("*.crx")
-        ordered = sorted(paths, key=lambda x: x.stat().st_mtime)
-        return ordered[-1].name.removesuffix(".crx") if len(ordered) > 0 else None
+        logger.debug("Parsed XML response:")
+        logger.debug("%s", gupdate.model_dump_json())
+        if latest_version is not None:
+            for app in filter(
+                lambda app: app.appid == self._extension_id, gupdate.apps
+            ):
+                for updatecheck in app.updatechecks:
+                    if (
+                        _compare_version_string(updatecheck.version, latest_version)
+                        == VersionComparationResult.GreaterThan
+                    ):
+                        logger.debug(
+                            "Updating %s from %s to %s...",
+                            self._extension_id,
+                            latest_version,
+                            updatecheck.version,
+                        )
+                        return updatecheck
+        else:
+            app = next(
+                filter(lambda app: app.appid == self._extension_id, gupdate.apps),
+                None,
+            )
+            return (
+                app.updatechecks[0]
+                if app is not None and len(app.updatechecks) > 0
+                else None
+            )
+        return None
