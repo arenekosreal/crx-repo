@@ -21,6 +21,19 @@ Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manife
 
 3. Get wheel: You can find wheel at `./dist` folder.
 
+## Optional dependencies
+
+> [!TIP]
+> You can always install all optional dependencies with extra `all`.
+
+- uvloop
+
+   High performance async event loop provider. Install with extra `uvloop`.
+
+- lxml
+
+   Support pretty print xml. Install with extra `lxml`.
+
 ## What is update manifest
 
 See https://developer.chrome.com/docs/extensions/how-to/distribute/host-on-linux#update_manifest for more info.
