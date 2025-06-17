@@ -3,6 +3,7 @@
 from .cache import Cache
 from .cache import MemoryCache
 from .utils import has_package
+from typing import Literal
 from .chrome import ChromeExtensionDownloader
 from .config import Config
 from asyncio import Task
@@ -23,6 +24,20 @@ logger = getLogger(__name__)
 
 CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
+
+
+def _update_gupdate(
+    gupdate: GUpdate,
+    update_check: UpdateCheck,
+    extension_id: str,
+    status: Literal["ok"],
+):
+    for app in gupdate.apps:
+        if app.appid == extension_id:
+            app.updatechecks.append(update_check)
+            return
+    app = App(appid=extension_id, status=status, updatechecks=[update_check])
+    gupdate.apps.append(app)
 
 
 def setup(config: Config, event: Event) -> Application:
@@ -119,8 +134,7 @@ def setup(config: Config, event: Event) -> Application:
             update_check = UpdateCheck(
                 codebase=codebase, hash_sha256=hash_sha256, size=size, version=version
             )
-            app = App(appid=extension_id, status=status, updatechecks=[update_check])
-            gupdate.apps.append(app)
+            _update_gupdate(gupdate, update_check, extension_id, status)
 
         body = gupdate.to_xml(
             exclude_none=True,
