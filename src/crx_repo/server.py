@@ -107,7 +107,7 @@ def setup(config: Config, event: Event) -> Application:
         gupdate = GUpdate(apps=[], protocol="2.0")
 
         for extension_id, extension_version in extension_infos:
-            codebase = base + prefix + extension_id + "/" + extension_version + ".crx"
+            codebase = f"{base}{prefix}/{extension_id}/{extension_version}.crx"
             version = extension_version
             status = "ok"
             size = request.app[cache_key].extension_size(
