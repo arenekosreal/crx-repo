@@ -132,7 +132,7 @@ def setup(config: Config, event: Event) -> Application:
     if config.cache_dir.exists() and not config.cache_dir.is_dir():
         logger.warning("Removing %s to create cache directory...", config.cache_dir)
         config.cache_dir.unlink()
-        config.cache_dir.mkdir(parents=True)
+    config.cache_dir.mkdir(parents=True, exist_ok=True)
 
     _ = app.router.add_static(prefix, config.cache_dir, name="crx-handler")
     _ = app.router.add_get(manifest_path, handle_manifest, name="manifest-handler")
