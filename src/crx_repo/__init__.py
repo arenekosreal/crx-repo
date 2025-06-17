@@ -15,7 +15,6 @@ from .config import ConfigParser
 from .config import LogLevelType
 from .server import setup
 from asyncio import Event
-from logging import DEBUG
 from logging import Formatter
 from logging import StreamHandler
 from logging import getLogger
@@ -53,7 +52,7 @@ async def __parse_async(config: Path) -> Config:
 async def __launch_async(config: Path):
     deserialized_config = await __parse_async(config)
     event = Event()
-    app = setup(deserialized_config, logger.level == DEBUG, event)
+    app = setup(deserialized_config, event)
     runner = AppRunner(app)
     await runner.setup()
     if deserialized_config.listen.tcp is not None:

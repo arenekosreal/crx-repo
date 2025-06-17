@@ -25,7 +25,7 @@ CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
 
 
-def setup(config: Config, debug: bool, event: Event) -> Application:
+def setup(config: Config, event: Event) -> Application:
     """Setup an `aiohttp.web.Application` instance.
 
     Args:
@@ -36,7 +36,7 @@ def setup(config: Config, debug: bool, event: Event) -> Application:
     Returns:
         Application: The `aiohttp.web.Application` object which can be run later.
     """
-    app = Application(logger=logger, debug=debug)
+    app = Application(logger=logger)
     extensions = {
         extension: AppKey(extension, Task[None]) for extension in config.extensions
     }
