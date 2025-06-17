@@ -123,6 +123,7 @@ class ExtensionDownloader(ABC):
                 )
             hash_calculator = sha256()
             temp_crx = path.with_name(path.name + ".part")
+            temp_crx.parent.mkdir(exist_ok=True, parents=True)
             async with aioopen(temp_crx, "wb") as writer:
                 try:
                     async for chunk in response.content.iter_chunked(
