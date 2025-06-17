@@ -4,10 +4,16 @@ __version__ = "0.3.0"
 
 
 from rich import print as rich_print
+from .toml import TomlConfigParser
 from typer import Exit
 from typer import Typer
 from typer import Option
+from .utils import has_package
 from typing import Annotated
+from .config import Config
+from .config import ConfigParser
+from .config import LogLevelType
+from .server import setup
 from asyncio import Event
 from logging import DEBUG
 from logging import Formatter
@@ -19,18 +25,10 @@ from aiohttp.web import UnixSite
 from aiohttp.web import AppRunner
 
 
-try:
+if has_package("uvloop"):
     from uvloop import run
-except ImportError:
+else:
     from asyncio import run
-
-from .toml import TomlConfigParser
-from .config import Config
-from .config import ConfigParser
-from .config import LogLevelType
-from .server import setup
-
-
 logger = getLogger(__name__)
 main = Typer(help=__doc__)
 

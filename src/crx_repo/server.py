@@ -2,6 +2,7 @@
 
 from .cache import Cache
 from .cache import MemoryCache
+from .utils import has_package
 from .chrome import ChromeExtensionDownloader
 from .config import Config
 from asyncio import Task
@@ -121,7 +122,11 @@ def setup(config: Config, debug: bool, event: Event) -> Application:
             app = App(appid=extension_id, status=status, updatechecks=[update_check])
             gupdate.apps.append(app)
 
-        body = gupdate.to_xml(exclude_none=True, pretty_print=True, encoding="utf-8")
+        body = gupdate.to_xml(
+            exclude_none=True,
+            encoding="utf-8",
+            **({"pretty_print": True} if has_package("lxml") else {}),
+        )
         return Response(body=body, content_type="application/xml", charset="utf-8")
 
     if not config.cache_dir.is_dir():
