@@ -124,7 +124,8 @@ ignore = [
 # tests are usually using assert and private objects
 # pyright is not happy when using i.attr
 # test __eq__ function should not be changed to ==
-"tests/**.py" = ["S101"]
+# Needs to group tests with method.
+"tests/**.py" = ["S101", "PLR6301"]
 # async generator is required by aiohttp
 "src/crx_repo/__init__.py" = ["RUF029"]
 # async generator is required by aiohttp
