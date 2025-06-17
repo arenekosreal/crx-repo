@@ -1,5 +1,10 @@
+"""Classes and functions to parse config files."""
+
 from abc import ABC
 from abc import abstractmethod
+from ssl import Purpose
+from ssl import SSLContext
+from ssl import create_default_context
 from typing import Literal
 from typing import ClassVar
 from pathlib import Path
@@ -8,15 +13,14 @@ from pydantic import ConfigDict
 from pydantic import PositiveInt
 from pydantic import field_validator
 from pydantic.alias_generators import to_snake
-from ssl import SSLContext
-from ssl import create_default_context
-from ssl import Purpose
 
 
 type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class ConfigModel(BaseModel):
+    """A base class which defines models of config files."""
+
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
 
 
@@ -29,6 +33,7 @@ class TlsHttpListenConfig(ConfigModel):
 
     @property
     def ssl_context(self) -> SSLContext:
+        """The ssl context of current HTTPS config."""
         context = create_default_context(Purpose.CLIENT_AUTH)
         context.load_cert_chain(self.cert, self.key, self.password)
         return context
@@ -62,6 +67,7 @@ class ListenConfig(ConfigModel):
         cls,
         value: TcpListenConfig | None,
     ) -> TcpListenConfig | None:
+        """Ensure tcp and unix are not None either."""
         if value is None and cls.unix is None:
             raise ValueError("You need to specify at least one of tcp and unix")
         return value
@@ -72,6 +78,7 @@ class ListenConfig(ConfigModel):
         cls,
         value: UnixListenConfig | None,
     ) -> UnixListenConfig | None:
+        """Ensure unix and tcp are not None either."""
         if value is None and cls.tcp is None:
             raise ValueError("You need to specify at least one of tcp and unix")
         return value
@@ -93,5 +100,15 @@ class Config(ConfigModel):
 
 
 class ConfigParser(ABC):
+    """Abstract class for what a config parser should do."""
+
     @abstractmethod
-    async def parse_async(self, config: Path) -> Config | None: ...
+    async def parse_async(self, config: Path) -> Config | None:
+        """Parse the config asynchronously.
+
+        Args:
+            config(Path): The path of config file.
+
+        Returns:
+            Config | None: Deserialized config. None means failed to parse.
+        """

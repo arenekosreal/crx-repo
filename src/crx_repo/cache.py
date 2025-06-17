@@ -1,53 +1,133 @@
-from typing import final
-from pathlib import Path
-from logging import getLogger
-from aiofiles import open as aioopen  # pyright: ignore[reportMissingModuleSource]
-from hashlib import sha256
-from watchfiles import Change
-from watchfiles import awatch  # pyright: ignore[reportUnknownVariableType]
-from asyncio import CancelledError
-from collections.abc import Iterator
+"""Update extension info automatically when its file changes."""
+
 from abc import ABC
 from abc import abstractmethod
+from typing import final
 from typing import override
+from asyncio import CancelledError
+from hashlib import sha256
+from logging import getLogger
+from pathlib import Path
+from aiofiles import open as aioopen
+from watchfiles import Change
+from watchfiles import awatch  # pyright: ignore[reportUnknownVariableType]
+from collections.abc import Iterator
 
 
 logger = getLogger(__name__)
 
 
 class Cache(ABC):
-    @abstractmethod
-    def __init__(self, cache: Path): ...
+    """Abstract class for what a cache should do."""
 
     @abstractmethod
-    def extension_path(self, extension_id: str, extension_version: str) -> Path: ...
+    def __init__(self, cache: Path):
+        """Initialize Cache with cache path.
+
+        Args:
+            cache(Path): The path of cache.
+        """
 
     @abstractmethod
-    def extension_size(self, extension_id: str, extension_version: str) -> int: ...
+    def extension_path(self, extension_id: str, extension_version: str) -> Path:
+        """Get extension path by its id and version.
+
+        Args:
+            extension_id(str): The id of extension.
+            extension_version(str): The version of extension.
+
+        Returns:
+            Path: The path of extension file.
+        """
+
+    @abstractmethod
+    def extension_size(self, extension_id: str, extension_version: str) -> int:
+        """Get extension size by its id and version.
+
+        Args:
+            extension_id(str): The id of extension
+            extension_version(str): The version of extension
+
+        Returns:
+            int: The size of file. 0 if not found.
+        """
 
     @abstractmethod
     async def extension_sha256_async(
         self,
         extension_id: str,
         extension_version: str,
-    ) -> str: ...
+    ) -> str:
+        """Get extension sha256 checksum asynchronously by its id and version.
+
+        Args:
+            extension_id(str): The id of extension.
+            extension_version(str): The version of extension.
+
+        Returns:
+            str: The sha256 checksum of file. Empty string if not found.
+        """
 
     @abstractmethod
-    async def watch(self): ...
+    async def watch(self):
+        """Watch cache changes and update cache automatically.
+
+        Notes:
+            This will block forever until `asyncio.CancelledError` raised.
+            This error usually raised by `asyncio.Task.cancel()` method.
+        """
 
     @abstractmethod
     def iter_extensions(
         self,
         extension_id: str | None = None,
         extension_version: str | None = None,
-    ) -> Iterator[tuple[str, str]]: ...
+    ) -> Iterator[tuple[str, str]]:
+        """Iter extensions in cache.
+
+        Args:
+            extension_id(str | None): The extension_id to filter, defaults to None.
+            extension_version(str | None): The extension version to filter, defaults to None.
+
+        Returns:
+            Iterator[tuple[str, str]]: An iterator of a tuple.
+
+            Each tuple contains extension id and extension version in string.
+
+        Example:
+            ```python
+            cache: Cache
+            for extension_id, extension_version in cache.iter_extensions():
+                ...
+            ```
+        """
 
     @abstractmethod
-    def extension_files(self, extension_id: str) -> Iterator[Path]: ...
+    def extension_files(self, extension_id: str) -> Iterator[Path]:
+        """Iter extension files in cache.
+
+        Args:
+            extension_id(str): The id of extension.
+
+        Returns:
+            Iterator[Path]: An iterator of Path.
+
+            Each Path is the file of extension.
+
+        Example:
+            ```python
+            cache: Cache
+            for path in cache.iter_extensions("example-extension-id"):
+                ...
+            ```
+        """
 
 
 @final
 class MemoryCache(Cache):
+    """A cache storage data in memory."""
+
+    @override
     def __init__(self, cache: Path):
         self.path = cache
         self.extension_infos: set[tuple[str, str]] = set()
@@ -61,7 +141,8 @@ class MemoryCache(Cache):
 
     @override
     def extension_size(self, extension_id: str, extension_version: str) -> int:
-        return self.extension_path(extension_id, extension_version).stat().st_size
+        path = self.extension_path(extension_id, extension_version)
+        return path.stat().st_size if path.exists() else 0
 
     @override
     async def extension_sha256_async(
@@ -83,8 +164,8 @@ class MemoryCache(Cache):
                 watch_filter=lambda change, path: change != Change.modified
                 and path.endswith(".crx"),
             ):
-                for change, path in changes:
-                    path = Path(path)
+                for change, path_str in changes:
+                    path = Path(path_str)
                     extension_info = path.parent.stem, path.stem
                     match change:
                         case Change.added:

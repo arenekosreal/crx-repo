@@ -1,3 +1,5 @@
+"""Support for `python -m crx_repo`."""
+
 from crx_repo import main
 
 

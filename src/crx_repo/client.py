@@ -1,30 +1,30 @@
+"""Classes and functions for downloading extensions."""
+
 from abc import ABC
 from abc import abstractmethod
-from aiohttp import ClientSession
-from aiohttp import ClientError
-from aiohttp.web import HTTPOk
-from asyncio import TimeoutError as AsyncTimeoutError
-from asyncio import sleep
-from asyncio import CancelledError
-from aiofiles import open as aioopen
-from logging import getLogger
-from pathlib import Path
-from typing import override
-from typing import final
-from pydantic import PositiveInt
-from pydantic import ValidationError
-from hashlib import sha256
-from urllib.parse import urlencode
 from enum import Enum
 from .cache import Cache
-from .manifest import GUpdate
+from typing import final
+from aiohttp import ClientError
+from aiohttp import ClientSession
+from asyncio import TimeoutError as AsyncTimeoutError
+from asyncio import CancelledError
+from asyncio import sleep
+from hashlib import sha256
+from logging import getLogger
+from pathlib import Path
+from aiofiles import open as aioopen
+from pydantic import PositiveInt
 from .manifest import UpdateCheck
+from aiohttp.web import HTTPOk
 
 
 logger = getLogger(__name__)
 
 
 class VersionComparationResult(Enum):
+    """An Enum to represent result of version comparation."""
+
     LessThan = -1
     Equal = 0
     GreaterThan = 1
@@ -39,7 +39,16 @@ def _try_get_int(strings: list[str], index: int, default: int) -> int:
     return default
 
 
-def _compare_version_string(a: str, b: str) -> VersionComparationResult:
+def compare_version_string(a: str, b: str) -> VersionComparationResult:
+    """Compare version string.
+
+    Args:
+        a(str): Version string a
+        b(str): Version string b
+
+    Returns:
+        VersionComparationResult: If a is greater than b.
+    """
     logger.debug("Comparing %s and %s...", a, b)
     splited_a = a.split(".")
     splited_b = b.split(".")
@@ -56,6 +65,8 @@ def _compare_version_string(a: str, b: str) -> VersionComparationResult:
 
 
 class ExtensionDownloader(ABC):
+    """Abstract class for what a extension downloader should do."""
+
     CHUNK_SIZE_BYTES: int = 1024 * 1024  # 1MB
 
     @final
@@ -67,6 +78,15 @@ class ExtensionDownloader(ABC):
         proxy: str | None,
         cache: Cache,
     ):
+        """Initialize ExtensionDownloader with arguments given.
+
+        Args:
+            extension_id(str): The id of extension.
+            interval(PositiveInt): How many seconds to trigger another checking.
+            chrome_version(str): The value of `prodversion` in queries of request.
+            proxy(str | None): The proxy to send requests. None means no proxy.
+            cache(Cache): The Cache implementation.
+        """
         self._extension_id: str = extension_id
         self.__interval: PositiveInt = interval
         self._chrome_version: str = chrome_version
@@ -125,13 +145,13 @@ class ExtensionDownloader(ABC):
                     logger.error("Removing downloaded file...")
                     temp_crx.unlink()
                     return
-                else:
-                    logger.debug("Checksum of %s match.", self._extension_id)
+                logger.debug("Checksum of %s match.", self._extension_id)
             else:
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
     async def download_forever(self):
+        """Download extensions forever if it is needed to do."""
         try:
             while True:
                 async with ClientSession() as session:
@@ -166,75 +186,3 @@ class ExtensionDownloader(ABC):
     async def _check_updates(
         self, latest_version: str | None, session: ClientSession
     ) -> UpdateCheck | None: ...
-
-
-@final
-class ChromeExtensionDownloader(ExtensionDownloader):
-    CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
-
-    @override
-    async def _check_updates(
-        self,
-        latest_version: str | None,
-        session: ClientSession,
-    ) -> UpdateCheck | None:
-        x = {"id": self._extension_id}
-        params = {
-            "response": "updatecheck",
-            "acceptformat": "crx2,crx3",
-            "prodversion": self._chrome_version,
-            "x": urlencode(x) + "&uc",  # No `updatecheck` without `&uc`
-        }
-        async with session.get(
-            self.CHROME_WEB_STORE_API_BASE,
-            params=params,
-            proxy=self._proxy,
-        ) as response:
-            logger.debug("Sending url %s...", response.url)
-            if response.status != HTTPOk.status_code:
-                logger.error(
-                    "Failed to check extension update because server returns %d.",
-                    response.status,
-                )
-                return None
-            try:
-                text = await response.read()
-            except (ClientError, AsyncTimeoutError) as ce:
-                logger.error("Failed to get response text because %s.", ce)
-                return
-        logger.debug("Parsing XML response:")
-        logger.debug("%s", text)
-        try:
-            gupdate = GUpdate.from_xml(text)
-        except ValidationError as ve:
-            logger.error("Failed to deserialize response because %s.", ve.json())
-            return None
-        logger.debug("Parsed XML response:")
-        logger.debug("%s", gupdate.model_dump_json())
-        if latest_version is not None:
-            for app in filter(
-                lambda app: app.appid == self._extension_id, gupdate.apps
-            ):
-                for updatecheck in app.updatechecks:
-                    if (
-                        _compare_version_string(updatecheck.version, latest_version)
-                        == VersionComparationResult.GreaterThan
-                    ):
-                        logger.debug(
-                            "Updating %s from %s to %s...",
-                            self._extension_id,
-                            latest_version,
-                            updatecheck.version,
-                        )
-                        return updatecheck
-        else:
-            app = next(
-                filter(lambda app: app.appid == self._extension_id, gupdate.apps),
-                None,
-            )
-            return (
-                app.updatechecks[0]
-                if app is not None and len(app.updatechecks) > 0
-                else None
-            )
-        return None

@@ -8,16 +8,16 @@ from typer import Exit
 from typer import Typer
 from typer import Option
 from typing import Annotated
+from asyncio import Event
+from logging import DEBUG
 from logging import Formatter
 from logging import StreamHandler
 from logging import getLogger
-from logging import DEBUG
 from pathlib import Path
-from aiohttp.web import AppRunner
 from aiohttp.web import TCPSite
 from aiohttp.web import UnixSite
-from asyncio import sleep
-from asyncio import CancelledError
+from aiohttp.web import AppRunner
+
 
 try:
     from uvloop import run
@@ -54,7 +54,8 @@ async def __parse_async(config: Path) -> Config:
 
 async def __launch_async(config: Path):
     deserialized_config = await __parse_async(config)
-    app = setup(deserialized_config, logger.level == DEBUG)
+    event = Event()
+    app = setup(deserialized_config, logger.level == DEBUG, event)
     runner = AppRunner(app)
     await runner.setup()
     if deserialized_config.listen.tcp is not None:
@@ -76,11 +77,9 @@ async def __launch_async(config: Path):
             else None,
         )
         await site.start()
-    try:
-        while True:
-            await sleep(3600)
-    except CancelledError:
-        logger.info("Exiting...")
+
+    _ = await event.wait()
+    logger.info("Exiting...")
     await runner.cleanup()
 
 

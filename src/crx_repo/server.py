@@ -1,18 +1,21 @@
+"""Classes and functions for serving manifest."""
+
+from .cache import Cache
+from .cache import MemoryCache
+from .chrome import ChromeExtensionDownloader
+from .config import Config
+from asyncio import Task
+from asyncio import Event
+from asyncio import create_task
 from logging import getLogger
-from aiohttp.web import Application
+from .manifest import App
+from .manifest import GUpdate
+from .manifest import UpdateCheck
 from aiohttp.web import AppKey
 from aiohttp.web import Request
 from aiohttp.web import Response
-from asyncio import Task
-from asyncio import create_task
+from aiohttp.web import Application
 from urllib.parse import parse_qs
-from .config import Config
-from .client import ChromeExtensionDownloader
-from .cache import Cache
-from .cache import MemoryCache
-from .manifest import UpdateCheck
-from .manifest import App
-from .manifest import GUpdate
 
 
 logger = getLogger(__name__)
@@ -21,11 +24,21 @@ CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
 
 
-def setup(config: Config, debug: bool) -> Application:
+def setup(config: Config, debug: bool, event: Event) -> Application:
+    """Setup an `aiohttp.web.Application` instance.
+
+    Args:
+        config(Config): The deserialized config.
+        debug(bool): If set application in debug mode.
+        event(Event): The `asyncio.Event` object for blocking without sleeping forever.
+
+    Returns:
+        Application: The `aiohttp.web.Application` object which can be run later.
+    """
     app = Application(logger=logger, debug=debug)
-    extensions = dict(
-        (extension, AppKey(extension, Task[None])) for extension in config.extensions
-    )
+    extensions = {
+        extension: AppKey(extension, Task[None]) for extension in config.extensions
+    }
     cache_watcher_key = AppKey(CACHE_WATCHER_KEY, Task[None])
     cache_key = AppKey(CACHE_KEY, Cache)
 
@@ -50,6 +63,7 @@ def setup(config: Config, debug: bool) -> Application:
             await app[extension_key]
         _ = app[cache_watcher_key].cancel()
         await app[cache_watcher_key]
+        event.set()
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)
     base = config.base.removesuffix("/") if config.base.endswith("/") else config.base
@@ -68,9 +82,9 @@ def setup(config: Config, debug: bool) -> Application:
             logger.debug("Query found, sending filtered extensions...")
             for x in request.query.getall("x"):
                 logger.debug("Parsing extension query %s...", x)
-                extension_query = dict(
-                    (k, v[0]) for k, v in parse_qs(x).items() if len(v) == 1
-                )
+                extension_query = {
+                    k: v[0] for k, v in parse_qs(x).items() if len(v) == 1
+                }
                 extension_id = extension_query.get("id")
                 extension_version = extension_query.get("v")
                 if extension_id is not None and extension_version is not None:
