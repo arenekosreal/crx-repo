@@ -129,7 +129,7 @@ def setup(config: Config, event: Event) -> Application:
         )
         return Response(body=body, content_type="application/xml", charset="utf-8")
 
-    if not config.cache_dir.is_dir():
+    if config.cache_dir.exists() and not config.cache_dir.is_dir():
         logger.warning("Removing %s to create cache directory...", config.cache_dir)
         config.cache_dir.unlink()
         config.cache_dir.mkdir(parents=True)
