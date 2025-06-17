@@ -2,6 +2,7 @@
 
 import pytest
 from asyncio import Event
+from pathlib import Path
 from aiohttp.web import HTTPOk
 from pytest_aiohttp import AiohttpClient
 from crx_repo.config import Config
@@ -9,7 +10,7 @@ from crx_repo.server import setup
 
 
 @pytest.fixture
-def config(unused_tcp_port: int) -> Config:
+def config(unused_tcp_port: int, tmp_path: Path) -> Config:
     """A pytest fixture to generate Config object for testing."""
     return Config.model_validate(
         {
@@ -18,7 +19,8 @@ def config(unused_tcp_port: int) -> Config:
                     "address": "127.0.0.1",
                     "port": unused_tcp_port,
                 }
-            }
+            },
+            "cache-dir": str(tmp_path / "cache"),
         }
     )
 
