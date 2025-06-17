@@ -184,7 +184,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "aiohttp" },
-    { name = "lxml" },
     { name = "pydantic" },
     { name = "pydantic-xml" },
     { name = "typer" },
@@ -192,6 +191,13 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "lxml" },
+    { name = "uvloop" },
+]
+lxml = [
+    { name = "lxml" },
+]
 uvloop = [
     { name = "uvloop" },
 ]
@@ -207,14 +213,16 @@ dev = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "aiohttp", specifier = ">=3.9.3,<4.0.0" },
-    { name = "lxml", specifier = ">=5.4.0" },
+    { name = "lxml", marker = "extra == 'all'" },
+    { name = "lxml", marker = "extra == 'lxml'", specifier = ">=5.4.0" },
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "pydantic-xml", specifier = ">=2.17.1" },
     { name = "typer", specifier = ">=0.16.0" },
+    { name = "uvloop", marker = "extra == 'all'" },
     { name = "uvloop", marker = "extra == 'uvloop'", specifier = ">=0.20.0" },
     { name = "watchfiles", specifier = ">=0.24.0" },
 ]
-provides-extras = ["uvloop"]
+provides-extras = ["uvloop", "lxml", "all"]
 
 [package.metadata.requires-dev]
 dev = [
