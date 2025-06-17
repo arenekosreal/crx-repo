@@ -8,7 +8,7 @@ from ssl import create_default_context
 from typing import Literal
 from typing import ClassVar
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel as PyDanticBaseModel
 from pydantic import ConfigDict
 from pydantic import PositiveInt
 from pydantic import field_validator
@@ -18,13 +18,17 @@ from pydantic.alias_generators import to_snake
 type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
-class ConfigModel(BaseModel):
+def _to_kebab(string: str) -> str:
+    return to_snake(string).replace("_", "-")
+
+
+class BaseModel(PyDanticBaseModel):
     """A base class which defines models of config files."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_snake)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=_to_kebab)
 
 
-class TlsHttpListenConfig(ConfigModel):
+class TlsHttpListenConfig(BaseModel):
     """HTTPS config."""
 
     cert: Path = Path("crx-repo.crt")
@@ -39,7 +43,7 @@ class TlsHttpListenConfig(ConfigModel):
         return context
 
 
-class UnixListenConfig(ConfigModel):
+class UnixListenConfig(BaseModel):
     """Unix domain socket config."""
 
     path: Path = Path("/run/crx-repo/crx-repo.socket")
@@ -47,7 +51,7 @@ class UnixListenConfig(ConfigModel):
     tls: TlsHttpListenConfig | None = None
 
 
-class TcpListenConfig(ConfigModel):
+class TcpListenConfig(BaseModel):
     """TCP config."""
 
     address: str = "127.0.0.1"
@@ -55,10 +59,10 @@ class TcpListenConfig(ConfigModel):
     tls: TlsHttpListenConfig | None = None
 
 
-class ListenConfig(ConfigModel):
+class ListenConfig(BaseModel):
     """Listen config."""
 
-    tcp: TcpListenConfig | None = TcpListenConfig()
+    tcp: TcpListenConfig | None = None
     unix: UnixListenConfig | None = None
 
     @field_validator("tcp")
@@ -84,7 +88,7 @@ class ListenConfig(ConfigModel):
         return value
 
 
-class Config(ConfigModel):
+class Config(BaseModel):
     """Main runtime config."""
 
     log_level: LogLevelType = "INFO"

@@ -20,7 +20,7 @@ class TomlConfigParser(ConfigParser):
         async with aioopen(config, "r") as reader:
             try:
                 config_dict = loads(await reader.read())
-                config_object = Config.model_validate(config_dict, by_alias=True)
+                config_object = Config.model_validate(config_dict)
             except (TOMLDecodeError, ValidationError):
                 config_object = None
 
