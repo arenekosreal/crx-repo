@@ -77,50 +77,19 @@ required_plugins = "pytest-ruff pytest-cov pytest-aiohttp"
 builtins = ["_"]
 line-length = 100
 extend-exclude = ["__pycache__"]
-output-format = "github"
+output-format = "grouped"
 required-version = ">=0.6.2"
 
 [tool.ruff.lint]
-select = [
-    "F", # Pyflakes
-    "E", "W", # pycodestyle, Error, Warning
-    "I", # isort
-    "N", # pep8-naming
-    "D", # pydocstyle
-    "ANN", # flake8-annotations
-    "ASYNC", # flake8-async
-    "S", # flake8-bandit
-    "B", # flake8-bugbear
-    "A", # flake8-builtins
-    "COM", # flake8-commas
-    "C4", # flake8-comprehensions
-    "ISC", # flake8-implicit-str-concat
-    "T20", # flake8-print
-    "PT", # flake8-pytest-style
-    "Q", # flake8-quotes
-    "RSE", # flake8-raise
-    "RET", # flake8-return
-    "SIM", # flake8-simplify
-    "ARG", # flake8-unused-arguments
-    "PTH", # flake8-use-pathlib
-    "FIX", # flake8-fixme
-    "ERA", # eradicate
-    "PL", # Pylint
-    "R", # Refactor
-    "FLY", # flynt
-    "FURB", # refurb
-    "LOG", # flake8-logging
-    "RUF", # Ruff specific
-    "TID", # flake8-tidy-imports
-]
-
+select = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
 # tests are usually using assert and private objects
 # pyright is not happy when using i.attr
 # test __eq__ function should not be changed to ==
 # Needs to group tests with method.
-"tests/**.py" = ["S101", "PLR6301"]
+# No need __init__.py
+"tests/**.py" = ["S101", "PLR6301", "INP001"]
 # async generator is required by aiohttp
 "src/crx_repo/__init__.py" = ["RUF029"]
 # async generator is required by aiohttp

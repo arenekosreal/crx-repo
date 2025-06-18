@@ -19,8 +19,9 @@ def has_package(package: str) -> bool:
     """
     try:
         _ = metadata(package)
-        logger.debug("Found package %s.", package)
-        return True
     except PackageNotFoundError:
         logger.debug("%s is not found.", package)
         return False
+    else:
+        logger.debug("Found package %s.", package)
+        return True

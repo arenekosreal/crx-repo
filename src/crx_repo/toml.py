@@ -17,7 +17,7 @@ class TomlConfigParser(ConfigParser):
     async def parse_async(self, config: Path) -> Config | None:
         if not config.exists():
             return None
-        async with aioopen(config, "r") as reader:
+        async with aioopen(config) as reader:
             try:
                 config_dict = loads(await reader.read())
                 config_object = Config.model_validate(config_dict)

@@ -59,6 +59,20 @@ class TcpListenConfig(BaseModel):
     tls: TlsHttpListenConfig | None = None
 
 
+class NotNoneRequiredError(ValueError):
+    """Exception raised when two items cannot be None either."""
+
+    def __init__(self, name1: str, name2: str):
+        """Initialize NotNoneRequired object with arguments given.
+
+        Args:
+            name1(str): The first item's name.
+            name2(str): The second item's name.
+        """
+        msg = f"You need to specify at least one of {name1}, {name2}."
+        super().__init__(msg)
+
+
 class ListenConfig(BaseModel):
     """Listen config."""
 
@@ -73,7 +87,9 @@ class ListenConfig(BaseModel):
     ) -> TcpListenConfig | None:
         """Ensure tcp and unix are not None either."""
         if value is None and cls.unix is None:
-            raise ValueError("You need to specify at least one of tcp and unix")
+            first = "tcp"
+            second = "unix"
+            raise NotNoneRequiredError(first, second)
         return value
 
     @field_validator("unix")
@@ -84,7 +100,9 @@ class ListenConfig(BaseModel):
     ) -> UnixListenConfig | None:
         """Ensure unix and tcp are not None either."""
         if value is None and cls.tcp is None:
-            raise ValueError("You need to specify at least one of tcp and unix")
+            first = "tcp"
+            second = "unix"
+            raise NotNoneRequiredError(first, second)
         return value
 
 

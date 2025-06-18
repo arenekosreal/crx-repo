@@ -32,6 +32,18 @@ logger = getLogger(__name__)
 main = Typer(help=__doc__)
 
 
+class ParseError(RuntimeError):
+    """Exception raised when failed to parse configuration."""
+
+    def __init__(self, config_path: Path):
+        """Initialize `ParseError` with arguments given.
+
+        Args:
+            config_path(Path): The path of configuration.
+        """
+        super().__init__(f"Unable to parse config {config_path}")
+
+
 async def __parse_async(config: Path) -> Config:
     parsers: list[ConfigParser] = [TomlConfigParser()]
     for parser in parsers:
@@ -39,14 +51,14 @@ async def __parse_async(config: Path) -> Config:
             config_object = await parser.parse_async(config)
             if config_object is not None:
                 return config_object
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(
                 "Failed to parse %s with %s because %s",
                 config,
                 parser.__class__.__name__,
                 e,
             )
-    raise RuntimeError("Unable to parse config %s" % config) from None
+    raise ParseError(config) from None
 
 
 async def __launch_async(config: Path):
@@ -81,7 +93,7 @@ async def __launch_async(config: Path):
     await runner.cleanup()
 
 
-def __version(value: bool):
+def __version(value: bool):  # noqa: FBT001
     if value:
         rich_print(__version__)
         raise Exit
@@ -97,7 +109,7 @@ def _(
             parser=str,
         ),
     ] = "INFO",
-    _: Annotated[
+    _: Annotated[  # noqa: FBT002
         bool,
         Option(
             "--version",

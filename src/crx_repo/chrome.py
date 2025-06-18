@@ -4,7 +4,6 @@ from typing import ClassVar
 from typing import override
 from aiohttp import ClientError
 from aiohttp import ClientSession
-from asyncio import TimeoutError as AsyncTimeoutError
 from logging import getLogger
 from pydantic import ValidationError
 from aiohttp.web import HTTPOk
@@ -53,15 +52,15 @@ class ChromeExtensionDownloader(ExtensionDownloader):
                 return None
             try:
                 text = await response.read()
-            except (ClientError, AsyncTimeoutError) as ce:
-                logger.error("Failed to get response text because %s.", ce)
+            except (TimeoutError, ClientError):
+                logger.exception("Failed to get response text.")
                 return None
         logger.debug("Parsing XML response:")
         logger.debug("%s", text)
         try:
             gupdate = GUpdate.from_xml(text)
         except ValidationError as ve:
-            logger.error("Failed to deserialize response because %s.", ve.json())
+            logger.exception("Failed to deserialize response because %s.", ve.json())
             return None
         logger.debug("Parsed XML response:")
         logger.debug("%s", gupdate.model_dump_json())

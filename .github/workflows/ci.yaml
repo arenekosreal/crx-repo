@@ -32,6 +32,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: uv sync --dev --all-extras --no-extra uvloop --no-extra all
       - name: Test project
+        env:
+          RUFF_OUTPUT_FORMAT: github
         run: uv run pytest
 
   build-and-release:

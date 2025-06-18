@@ -6,7 +6,6 @@ from enum import Enum
 from typing import final
 from aiohttp import ClientError
 from aiohttp import ClientSession
-from asyncio import TimeoutError as AsyncTimeoutError
 from asyncio import CancelledError
 from asyncio import sleep
 from hashlib import sha256
@@ -129,12 +128,8 @@ class ExtensionDownloader(ABC):
                         chunk_size = await writer.write(chunk)
                         hash_calculator.update(chunk)
                         logger.debug("Writing %d byte(s) into %s...", chunk_size, path)
-                except (ClientError, AsyncTimeoutError) as ce:
-                    logger.error(
-                        "Failed to download %s because %s.",
-                        self._extension_id,
-                        ce,
-                    )
+                except (TimeoutError, ClientError):
+                    logger.exception("Failed to download %s.", self._extension_id)
             if sha256_checksum is not None:
                 logger.debug("Checking sha256 of downloaded file...")
                 actual_sha256_checksum = hash_calculator.hexdigest()

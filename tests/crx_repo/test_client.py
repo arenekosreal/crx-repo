@@ -15,7 +15,7 @@ test_map = [
 
 
 @pytest.mark.parametrize(("a", "b", "target_result"), test_map)
-def test_compare_version_string(a: str, b: str, target_result: bool):
+def test_compare_version_string(a: str, b: str, target_result: bool):  # noqa: FBT001
     """Test `crx_repo.client.compare_version_string` function."""
     result = compare_version_string(a, b)
     assert result == target_result
