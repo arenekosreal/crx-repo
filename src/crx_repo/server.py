@@ -58,8 +58,16 @@ def setup(config: Config, event: Event) -> Application:
     cache_watcher_key = AppKey(CACHE_WATCHER_KEY, Task[None])
     cache_key = AppKey(CACHE_KEY, Cache)
 
+    base = config.base.removesuffix("/") if config.base.endswith("/") else config.base
+    prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
+    manifest_path = (
+        config.manifest_path
+        if config.manifest_path.startswith("/")
+        else "/" + config.manifest_path
+    )
+
     async def on_cleanup_ctx_async(app: Application):
-        app[cache_key] = MemoryCache(config.cache_dir)
+        app[cache_key] = MemoryCache(config.cache_dir, app, prefix, "crx-handler")
         app[cache_watcher_key] = create_task(app[cache_key].watch())
         for extension_id, extension_key in extensions.items():
             app[extension_key] = create_task(
@@ -81,13 +89,6 @@ def setup(config: Config, event: Event) -> Application:
         event.set()
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)
-    base = config.base.removesuffix("/") if config.base.endswith("/") else config.base
-    prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
-    manifest_path = (
-        config.manifest_path
-        if config.manifest_path.startswith("/")
-        else "/" + config.manifest_path
-    )
 
     async def handle_manifest(request: Request) -> Response:
         logger.debug("Handling query params keys %s...", list(request.query.keys()))
@@ -142,11 +143,5 @@ def setup(config: Config, event: Event) -> Application:
         )
         return Response(body=body, content_type="application/xml", charset="utf-8")
 
-    if config.cache_dir.exists() and not config.cache_dir.is_dir():
-        logger.warning("Removing %s to create cache directory...", config.cache_dir)
-        config.cache_dir.unlink()
-    config.cache_dir.mkdir(parents=True, exist_ok=True)
-
-    _ = app.router.add_static(prefix, config.cache_dir, name="crx-handler")
     _ = app.router.add_get(manifest_path, handle_manifest, name="manifest-handler")
     return app

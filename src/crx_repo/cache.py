@@ -11,6 +11,7 @@ from pathlib import Path
 from aiofiles import open as aioopen
 from watchfiles import Change
 from watchfiles import awatch  # pyright: ignore[reportUnknownVariableType]
+from aiohttp.web import Application
 from collections.abc import Iterator
 
 
@@ -21,11 +22,14 @@ class Cache(ABC):
     """Abstract class for what a cache should do."""
 
     @abstractmethod
-    def __init__(self, cache: Path):
+    def __init__(self, cache: Path, app: Application, prefix: str, router_name: str):
         """Initialize Cache with cache path.
 
         Args:
             cache(Path): The path of cache.
+            app(Application): The server application.
+            prefix(str): The prefix of request path.
+            router_name(str): The name of router.
         """
 
     @abstractmethod
@@ -128,12 +132,18 @@ class MemoryCache(Cache):
     """A cache storage data in memory."""
 
     @override
-    def __init__(self, cache: Path):
+    def __init__(self, cache: Path, app: Application, prefix: str, router_name: str):
         self.path = cache
+        if self.path.exists() and not self.path.is_dir():
+            logger.warning("Removing %s to create cache directory...", self.path)
+            self.path.unlink()
+        self.path.mkdir(parents=True, exist_ok=True)
+        # extension_id, extension_version
         self.extension_infos: set[tuple[str, str]] = set()
         for extension_path in self.path.glob("./*/*.crx"):
             self.extension_infos.add((extension_path.parent.stem, extension_path.stem))
             logger.debug("Adding extension %s to cache...", extension_path)
+        _ = app.router.add_static(prefix, self.path, name=router_name)
 
     @override
     def extension_path(self, extension_id: str, extension_version: str) -> Path:
