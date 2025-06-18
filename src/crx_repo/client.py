@@ -4,7 +4,7 @@ from abc import ABC
 from abc import abstractmethod
 from enum import Enum
 from typing import final
-from asyncio import CancelledError
+from asyncio import Event
 from asyncio import sleep
 from hashlib import sha256
 from logging import getLogger
@@ -147,43 +147,41 @@ class ExtensionDownloader(ABC):
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
-    async def download_forever(self, interval: PositiveInt):
+    async def download_forever(self, interval: PositiveInt, stop_event: Event):
         """Download extensions forever if it is needed to do."""
-        try:
-            while True:
-                async with ClientSession() as session:
-                    extension_files = sorted(
-                        self.__cache.extension_files(self._extension_id),
-                        key=lambda p: p.stat().st_mtime,
-                    )
+        while not stop_event.is_set():
+            async with ClientSession() as session:
+                extension_files = sorted(
+                    self.__cache.extension_files(self._extension_id),
+                    key=lambda p: p.stat().st_mtime,
+                )
 
-                    update = await self._check_updates(
-                        extension_files[-1].stem if len(extension_files) > 0 else None,
-                        session,
+                update = await self._check_updates(
+                    extension_files[-1].stem if len(extension_files) > 0 else None,
+                    session,
+                )
+                if update is not None:
+                    logger.info(
+                        "Downloading extension %s with version %s...",
+                        self._extension_id,
+                        update.version,
                     )
-                    if update is not None:
-                        logger.info(
-                            "Downloading extension %s with version %s...",
-                            self._extension_id,
-                            update.version,
-                        )
-                        path = self.__cache.extension_path(
-                            self._extension_id,
-                            update.version,
-                        )
-                        await self.__download(
-                            update.codebase,
-                            path,
-                            session,
-                            update.size,
-                            update.hash_sha256,
-                        )
-                await sleep(interval)
-        except (CancelledError, KeyboardInterrupt):
-            logger.debug(
-                "Exitting downloader for extension %s...",
-                self._extension_id,
-            )
+                    path = self.__cache.extension_path(
+                        self._extension_id,
+                        update.version,
+                    )
+                    await self.__download(
+                        update.codebase,
+                        path,
+                        session,
+                        update.size,
+                        update.hash_sha256,
+                    )
+            await sleep(interval)
+        logger.debug(
+            "Exitting downloader for extension %s...",
+            self._extension_id,
+        )
 
     @abstractmethod
     async def _check_updates(

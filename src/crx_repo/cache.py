@@ -4,7 +4,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import final
 from typing import override
-from asyncio import CancelledError
+from asyncio import Event
 from hashlib import sha256
 from logging import getLogger
 from pathlib import Path
@@ -74,8 +74,11 @@ class Cache(ABC):
         """
 
     @abstractmethod
-    async def watch(self):
+    async def watch(self, stop_event: Event):
         """Watch cache changes and update cache automatically.
+
+        Args:
+            stop_event(Event): The `asyncio.Event` to stop watching.
 
         Notes:
             This will block forever until `asyncio.CancelledError` raised.
@@ -168,29 +171,28 @@ class MemoryCache(Cache):
             return sha256(await reader.read()).hexdigest()
 
     @override
-    async def watch(self):
-        try:
-            async for changes in awatch(
-                self.path,
-                watch_filter=lambda change, path: change != Change.modified
-                and path.endswith(".crx"),
-            ):
-                for change, path_str in changes:
-                    path = Path(path_str)
-                    extension_info = path.parent.stem, path.stem
-                    match change:
-                        case Change.added:
-                            self.extension_infos.add(extension_info)
-                        case Change.deleted:
-                            for filtered_extension_info in filter(
-                                lambda info: info == extension_info,
-                                self.extension_infos,
-                            ):
-                                self.extension_infos.remove(filtered_extension_info)
-                        case _:
-                            pass
-        except CancelledError:
-            logger.debug("Stopping watcher...")
+    async def watch(self, stop_event: Event):
+        async for changes in awatch(
+            self.path,
+            watch_filter=lambda change, path: change != Change.modified
+            and path.endswith(".crx"),
+            stop_event=stop_event,
+        ):
+            for change, path_str in changes:
+                path = Path(path_str)
+                extension_info = path.parent.stem, path.stem
+                match change:
+                    case Change.added:
+                        self.extension_infos.add(extension_info)
+                    case Change.deleted:
+                        for filtered_extension_info in filter(
+                            lambda info: info == extension_info,
+                            self.extension_infos,
+                        ):
+                            self.extension_infos.remove(filtered_extension_info)
+                    case _:
+                        pass
+        logger.debug("Stopping watcher...")
 
     @override
     def iter_extensions(

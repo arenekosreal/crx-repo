@@ -27,6 +27,12 @@ CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
 
 
+async def _wait_tasks(app: Application, *task_keys: AppKey[Task[None]]):
+    for task_key in task_keys:
+        if task_key in app and not app[task_key].done():
+            await app[task_key]
+
+
 def _update_gupdate(
     gupdate: GUpdate,
     update_check: UpdateCheck,
@@ -69,24 +75,24 @@ def setup(config: Config, event: Event) -> Application:
     )
 
     async def on_cleanup_ctx_async(app: Application):
+        watcher_stop_event = Event()
+        downloader_stop_event = Event()
         app[cache_key] = MemoryCache(config.cache_dir, app, prefix, "crx-handler")
-        app[cache_watcher_key] = create_task(app[cache_key].watch())
+        app[cache_watcher_key] = create_task(app[cache_key].watch(watcher_stop_event))
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
                 extension.get_downloader(
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval),
+                ).download_forever(config.interval, downloader_stop_event),
             )
 
         yield
 
-        for extension_key in extensions:
-            _ = app[extension_key].cancel()
-            await app[extension_key]
-        _ = app[cache_watcher_key].cancel()
-        await app[cache_watcher_key]
+        downloader_stop_event.set()
+        watcher_stop_event.set()
+        await _wait_tasks(app, *extensions.keys(), cache_watcher_key)
         event.set()
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)
