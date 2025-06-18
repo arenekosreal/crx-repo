@@ -3,7 +3,6 @@
 from abc import ABC
 from abc import abstractmethod
 from enum import Enum
-from .cache import Cache
 from typing import final
 from aiohttp import ClientError
 from aiohttp import ClientSession
@@ -15,8 +14,9 @@ from logging import getLogger
 from pathlib import Path
 from aiofiles import open as aioopen
 from pydantic import PositiveInt
-from .manifest import UpdateCheck
 from aiohttp.web import HTTPOk
+from crx_repo.cache import Cache
+from crx_repo.manifest import UpdateCheck
 
 
 logger = getLogger(__name__)
@@ -124,14 +124,16 @@ class ExtensionDownloader(ABC):
             async with aioopen(temp_crx, "wb") as writer:
                 try:
                     async for chunk in response.content.iter_chunked(
-                        self.CHUNK_SIZE_BYTES
+                        self.CHUNK_SIZE_BYTES,
                     ):
                         chunk_size = await writer.write(chunk)
                         hash_calculator.update(chunk)
                         logger.debug("Writing %d byte(s) into %s...", chunk_size, path)
                 except (ClientError, AsyncTimeoutError) as ce:
                     logger.error(
-                        "Failed to download %s because %s.", self._extension_id, ce
+                        "Failed to download %s because %s.",
+                        self._extension_id,
+                        ce,
                     )
             if sha256_checksum is not None:
                 logger.debug("Checking sha256 of downloaded file...")
@@ -169,7 +171,8 @@ class ExtensionDownloader(ABC):
                             update.version,
                         )
                         path = self.__cache.extension_path(
-                            self._extension_id, update.version
+                            self._extension_id,
+                            update.version,
                         )
                         await self.__download(
                             update.codebase,
@@ -187,5 +190,7 @@ class ExtensionDownloader(ABC):
 
     @abstractmethod
     async def _check_updates(
-        self, latest_version: str | None, session: ClientSession
+        self,
+        latest_version: str | None,
+        session: ClientSession,
     ) -> UpdateCheck | None: ...

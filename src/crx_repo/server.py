@@ -1,23 +1,23 @@
 """Classes and functions for serving manifest."""
 
-from .cache import Cache
-from .cache import MemoryCache
-from .utils import has_package
 from typing import Literal
-from .chrome import ChromeExtensionDownloader
-from .config import Config
 from asyncio import Task
 from asyncio import Event
 from asyncio import create_task
 from logging import getLogger
-from .manifest import App
-from .manifest import GUpdate
-from .manifest import UpdateCheck
 from aiohttp.web import AppKey
 from aiohttp.web import Request
 from aiohttp.web import Response
 from aiohttp.web import Application
 from urllib.parse import parse_qs
+from crx_repo.cache import Cache
+from crx_repo.cache import MemoryCache
+from crx_repo.utils import has_package
+from crx_repo.chrome import ChromeExtensionDownloader
+from crx_repo.config import Config
+from crx_repo.manifest import App
+from crx_repo.manifest import GUpdate
+from crx_repo.manifest import UpdateCheck
 
 
 logger = getLogger(__name__)
@@ -76,7 +76,7 @@ def setup(config: Config, event: Event) -> Application:
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval)
+                ).download_forever(config.interval),
             )
 
         yield
@@ -113,7 +113,7 @@ def setup(config: Config, event: Event) -> Application:
                         request.app[cache_key].iter_extensions(
                             extension_id,
                             extension_version,
-                        )
+                        ),
                     )
         else:
             logger.debug("No query found, sending all extensions...")
@@ -126,13 +126,18 @@ def setup(config: Config, event: Event) -> Application:
             version = extension_version
             status = "ok"
             size = request.app[cache_key].extension_size(
-                extension_id, extension_version
+                extension_id,
+                extension_version,
             )
             hash_sha256 = await request.app[cache_key].extension_sha256_async(
-                extension_id, extension_version
+                extension_id,
+                extension_version,
             )
             update_check = UpdateCheck(
-                codebase=codebase, hash_sha256=hash_sha256, size=size, version=version
+                codebase=codebase,
+                hash_sha256=hash_sha256,
+                size=size,
+                version=version,
             )
             _update_gupdate(gupdate, update_check, extension_id, status)
 

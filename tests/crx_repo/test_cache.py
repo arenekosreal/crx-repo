@@ -38,6 +38,6 @@ class TestMemoryCache:
         async with aioopen(example_file, "wb") as writer:
             _ = await writer.write(data)
         actual_hash = await cache.extension_sha256_async(
-            "example-id", "example-version"
+            "example-id", "example-version",
         )
         assert actual_hash == target_hash

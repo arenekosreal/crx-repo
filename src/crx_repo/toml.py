@@ -1,13 +1,13 @@
 """Parse config in toml format."""
 
 from typing import override
-from .config import Config
-from .config import ConfigParser
 from pathlib import Path
 from tomllib import TOMLDecodeError
 from tomllib import loads
 from aiofiles import open as aioopen
 from pydantic import ValidationError
+from crx_repo.config import Config
+from crx_repo.config import ConfigParser
 
 
 class TomlConfigParser(ConfigParser):

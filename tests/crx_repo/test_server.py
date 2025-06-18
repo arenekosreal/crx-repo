@@ -18,10 +18,10 @@ def config(unused_tcp_port: int, tmp_path: Path) -> Config:
                 "tcp": {
                     "address": "127.0.0.1",
                     "port": unused_tcp_port,
-                }
+                },
             },
             "cache-dir": str(tmp_path / "cache"),
-        }
+        },
     )
 
 

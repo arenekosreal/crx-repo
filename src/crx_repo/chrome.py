@@ -2,18 +2,18 @@
 
 from typing import ClassVar
 from typing import override
-from .client import ExtensionDownloader
-from .client import VersionComparationResult
-from .client import compare_version_string
 from aiohttp import ClientError
 from aiohttp import ClientSession
 from asyncio import TimeoutError as AsyncTimeoutError
 from logging import getLogger
 from pydantic import ValidationError
-from .manifest import GUpdate
-from .manifest import UpdateCheck
 from aiohttp.web import HTTPOk
 from urllib.parse import urlencode
+from crx_repo.client import ExtensionDownloader
+from crx_repo.client import VersionComparationResult
+from crx_repo.client import compare_version_string
+from crx_repo.manifest import GUpdate
+from crx_repo.manifest import UpdateCheck
 
 
 logger = getLogger(__name__)
@@ -67,7 +67,8 @@ class ChromeExtensionDownloader(ExtensionDownloader):
         logger.debug("%s", gupdate.model_dump_json())
         if latest_version is not None:
             for app in filter(
-                lambda app: app.appid == self._extension_id, gupdate.apps
+                lambda app: app.appid == self._extension_id,
+                gupdate.apps,
             ):
                 for updatecheck in app.updatechecks:
                     if (

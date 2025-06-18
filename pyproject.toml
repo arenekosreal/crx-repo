@@ -81,7 +81,6 @@ output-format = "github"
 required-version = ">=0.6.2"
 
 [tool.ruff.lint]
-preview = true
 select = [
     "F", # Pyflakes
     "E", "W", # pycodestyle, Error, Warning
@@ -112,13 +111,9 @@ select = [
     "FURB", # refurb
     "LOG", # flake8-logging
     "RUF", # Ruff specific
+    "TID", # flake8-tidy-imports
 ]
-ignore = [
-    "PLW0603", # global statements
-    "FIX002", # todo is not critical
-    "COM812",
-    "ISC001",
-]
+
 
 [tool.ruff.lint.per-file-ignores]
 # tests are usually using assert and private objects
