@@ -83,7 +83,7 @@ async def __launch_async(config: Path):
 
 def __version(value: bool):
     if value:
-        rich_print(__version)
+        rich_print(__version__)
         raise Exit
 
 
