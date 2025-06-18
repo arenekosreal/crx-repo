@@ -1,6 +1,6 @@
 """Download extensions from Chrome Web Store."""
 
-from typing import final
+from typing import ClassVar
 from typing import override
 from .client import ExtensionDownloader
 from .client import VersionComparationResult
@@ -19,11 +19,12 @@ from urllib.parse import urlencode
 logger = getLogger(__name__)
 
 
-@final
 class ChromeExtensionDownloader(ExtensionDownloader):
     """An ExtensionDownloader implementation downloads extensions from Chrome Web Store."""
 
-    CHROME_WEB_STORE_API_BASE = "https://clients2.google.com/service/update2/crx"
+    CHROME_WEB_STORE_API_BASE: ClassVar[str] = (
+        "https://clients2.google.com/service/update2/crx"
+    )
 
     @override
     async def _check_updates(
