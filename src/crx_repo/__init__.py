@@ -75,6 +75,7 @@ async def __launch_async(config: Path):
         )
         await site.start()
 
+    logger.info("Starting web server...")
     _ = await event.wait()
     logger.info("Exiting...")
     await runner.cleanup()

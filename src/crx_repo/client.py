@@ -163,6 +163,11 @@ class ExtensionDownloader(ABC):
                         session,
                     )
                     if update is not None:
+                        logger.info(
+                            "Downloading extension %s with version %s...",
+                            self._extension_id,
+                            update.version,
+                        )
                         path = self.__cache.extension_path(
                             self._extension_id, update.version
                         )
