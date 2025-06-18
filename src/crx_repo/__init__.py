@@ -47,17 +47,9 @@ class ParseError(RuntimeError):
 async def __parse_async(config: Path) -> Config:
     parsers: list[ConfigParser] = [TomlConfigParser()]
     for parser in parsers:
-        try:
-            config_object = await parser.parse_async(config)
-            if config_object is not None:
-                return config_object
-        except Exception as e:  # noqa: BLE001
-            logger.debug(
-                "Failed to parse %s with %s because %s",
-                config,
-                parser.__class__.__name__,
-                e,
-            )
+        config_object = await parser.parse_async(config)
+        if config_object is not None:
+            return config_object
     raise ParseError(config) from None
 
 
