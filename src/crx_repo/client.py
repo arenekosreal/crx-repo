@@ -73,7 +73,6 @@ class ExtensionDownloader(ABC):
     def __init__(
         self,
         extension_id: str,
-        interval: PositiveInt,
         chrome_version: str,
         proxy: str | None,
         cache: Cache,
@@ -82,13 +81,11 @@ class ExtensionDownloader(ABC):
 
         Args:
             extension_id(str): The id of extension.
-            interval(PositiveInt): How many seconds to trigger another checking.
             chrome_version(str): The value of `prodversion` in queries of request.
             proxy(str | None): The proxy to send requests. None means no proxy.
             cache(Cache): The Cache implementation.
         """
         self._extension_id: str = extension_id
-        self.__interval: PositiveInt = interval
         self._chrome_version: str = chrome_version
         self._proxy: str | None = proxy
         self.__cache: Cache = cache
@@ -151,7 +148,7 @@ class ExtensionDownloader(ABC):
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
-    async def download_forever(self):
+    async def download_forever(self, interval: PositiveInt):
         """Download extensions forever if it is needed to do."""
         try:
             while True:
@@ -176,7 +173,7 @@ class ExtensionDownloader(ABC):
                             update.size,
                             update.hash_sha256,
                         )
-                await sleep(self.__interval)
+                await sleep(interval)
         except (CancelledError, KeyboardInterrupt):
             logger.debug(
                 "Exitting downloader for extension %s...",

@@ -65,11 +65,10 @@ def setup(config: Config, event: Event) -> Application:
             app[extension_key] = create_task(
                 ChromeExtensionDownloader(
                     extension_id,
-                    config.interval,
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever()
+                ).download_forever(config.interval)
             )
 
         yield
