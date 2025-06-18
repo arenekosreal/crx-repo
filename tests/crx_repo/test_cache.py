@@ -5,13 +5,14 @@ from random import randbytes
 from hashlib import sha256
 from pathlib import Path
 from aiofiles import open as aioopen
+from aiohttp.web import Application
 from crx_repo.cache import MemoryCache
 
 
 @pytest.fixture
 def cache(tmp_path: Path) -> MemoryCache:
     """A pytest fixture to generate a MemoryCache object for testing."""
-    return MemoryCache(tmp_path)
+    return MemoryCache(tmp_path, Application(), "/test-prefix", "test-name")
 
 
 class TestMemoryCache:
