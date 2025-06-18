@@ -74,7 +74,6 @@ addopts = "--cov=crx_repo --ruff"
 required_plugins = "pytest-ruff pytest-cov pytest-aiohttp"
 
 [tool.ruff]
-builtins = ["_"]
 line-length = 100
 extend-exclude = ["__pycache__"]
 output-format = "grouped"
@@ -108,7 +107,6 @@ ban-relative-imports = "all"
 force-single-line = true
 length-sort = true
 lines-after-imports = 2
-no-sections = true
 
 [tool.ruff.lint.pycodestyle]
 max-doc-length = 100

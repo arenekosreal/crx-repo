@@ -3,19 +3,21 @@
 __version__ = "0.3.0"
 
 
-from rich import print as rich_print
-from typer import Exit
-from typer import Typer
-from typer import Option
 from typing import Annotated
 from asyncio import Event
 from logging import Formatter
 from logging import StreamHandler
 from logging import getLogger
 from pathlib import Path
+
+from rich import print as rich_print
+from typer import Exit
+from typer import Typer
+from typer import Option
 from aiohttp.web import TCPSite
 from aiohttp.web import UnixSite
 from aiohttp.web import AppRunner
+
 from crx_repo.toml import TomlConfigParser
 from crx_repo.utils import has_package
 from crx_repo.config import Config

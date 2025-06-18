@@ -1,6 +1,7 @@
 """Test src/crx_repo/utils.py."""
 
 import pytest
+
 from crx_repo.utils import has_package
 
 

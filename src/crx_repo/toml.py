@@ -1,13 +1,19 @@
 """Parse config in toml format."""
 
 from typing import override
+from logging import getLogger
 from pathlib import Path
 from tomllib import TOMLDecodeError
 from tomllib import loads
+
 from aiofiles import open as aioopen
 from pydantic import ValidationError
+
 from crx_repo.config import Config
 from crx_repo.config import ConfigParser
+
+
+logger = getLogger(__name__)
 
 
 class TomlConfigParser(ConfigParser):
@@ -21,7 +27,11 @@ class TomlConfigParser(ConfigParser):
             try:
                 config_dict = loads(await reader.read())
                 config_object = Config.model_validate(config_dict)
-            except (TOMLDecodeError, ValidationError):
+            except TOMLDecodeError:
+                logger.exception("Failed to parse toml file.")
+                config_object = None
+            except ValidationError:
+                logger.exception("Failed to validate model.")
                 config_object = None
 
             return config_object

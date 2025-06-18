@@ -4,16 +4,18 @@ from abc import ABC
 from abc import abstractmethod
 from enum import Enum
 from typing import final
-from aiohttp import ClientError
-from aiohttp import ClientSession
 from asyncio import CancelledError
 from asyncio import sleep
 from hashlib import sha256
 from logging import getLogger
 from pathlib import Path
+
+from aiohttp import ClientError
+from aiohttp import ClientSession
 from aiofiles import open as aioopen
 from pydantic import PositiveInt
 from aiohttp.web import HTTPOk
+
 from crx_repo.cache import Cache
 from crx_repo.manifest import UpdateCheck
 

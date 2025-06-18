@@ -27,7 +27,9 @@
 
 # Which extensions to track updating
 # Write their id here
-#extensions = []
+#[[extensions]]
+#extension-id = ""
+#extension-provider = "chrome" # Optional, defaults to "chrome".
 
 # Which directory is used to storage cache
 #cache-dir = "cache"

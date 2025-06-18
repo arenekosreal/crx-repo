@@ -12,6 +12,7 @@ Example:
 """
 
 from typing import Literal
+
 from pydantic_xml import BaseXmlModel
 from pydantic_xml import attr
 from pydantic_xml import element

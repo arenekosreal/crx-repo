@@ -8,11 +8,12 @@ from asyncio import CancelledError
 from hashlib import sha256
 from logging import getLogger
 from pathlib import Path
+from collections.abc import Iterator
+
 from aiofiles import open as aioopen
 from watchfiles import Change
 from watchfiles import awatch  # pyright: ignore[reportUnknownVariableType]
 from aiohttp.web import Application
-from collections.abc import Iterator
 
 
 logger = getLogger(__name__)

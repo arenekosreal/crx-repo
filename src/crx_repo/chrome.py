@@ -2,12 +2,14 @@
 
 from typing import ClassVar
 from typing import override
+from logging import getLogger
+from urllib.parse import urlencode
+
 from aiohttp import ClientError
 from aiohttp import ClientSession
-from logging import getLogger
 from pydantic import ValidationError
 from aiohttp.web import HTTPOk
-from urllib.parse import urlencode
+
 from crx_repo.client import ExtensionDownloader
 from crx_repo.client import VersionComparationResult
 from crx_repo.client import compare_version_string

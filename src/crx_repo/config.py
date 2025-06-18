@@ -5,14 +5,24 @@ from abc import abstractmethod
 from ssl import Purpose
 from ssl import SSLContext
 from ssl import create_default_context
+from typing import Any
 from typing import Literal
 from typing import ClassVar
+from typing import TypeGuard
 from pathlib import Path
+
+from pydantic import Field
 from pydantic import BaseModel as PyDanticBaseModel
 from pydantic import ConfigDict
 from pydantic import PositiveInt
+from pydantic import ValidationError
+from pydantic import ValidatorFunctionWrapHandler
 from pydantic import field_validator
 from pydantic.alias_generators import to_snake
+
+from crx_repo.cache import Cache
+from crx_repo.chrome import ChromeExtensionDownloader
+from crx_repo.client import ExtensionDownloader
 
 
 type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -20,6 +30,10 @@ type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRIT
 
 def _to_kebab(string: str) -> str:
     return to_snake(string).replace("_", "-")
+
+
+def _are_all[T](collection: list[Any], t: type[T]) -> TypeGuard[list[T]]:  # pyright: ignore[reportExplicitAny]
+    return all(isinstance(item, t) for item in collection)  # pyright: ignore[reportAny]
 
 
 class BaseModel(PyDanticBaseModel):
@@ -106,6 +120,38 @@ class ListenConfig(BaseModel):
         return value
 
 
+class Extension(BaseModel):
+    """Extension config."""
+
+    extension_id: str = Field(max_length=32, min_length=32)
+    extension_provider: Literal["chrome"] = "chrome"
+
+    def get_downloader(
+        self,
+        chrome_version: str,
+        proxy: str | None,
+        cache: Cache,
+    ) -> ExtensionDownloader:
+        """Get downloader by extension config.
+
+        Args:
+            chrome_version(str): The chrome_version of ExtensionDownloader.
+            proxy(str | None): The proxy of ExtensionDownloader.
+            cache(Cache): The cache of ExtensionDownloader.
+
+        Returns:
+            ExtensionDownloader: An ExtensionDownloader implementation based on extension_provider.
+        """
+        match self.extension_provider:
+            case "chrome":
+                return ChromeExtensionDownloader(
+                    self.extension_id,
+                    chrome_version,
+                    proxy,
+                    cache,
+                )
+
+
 class Config(BaseModel):
     """Main runtime config."""
 
@@ -116,9 +162,23 @@ class Config(BaseModel):
     proxy: str | None = None
     version: str = "128.0"
     interval: PositiveInt = 10800
-    extensions: list[str] = []
+    extensions: list[Extension] = []
     cache_dir: Path = Path("cache")
     listen: ListenConfig = ListenConfig()
+
+    @field_validator("extensions", mode="wrap")
+    @classmethod
+    def _convert_legacy_extensions(
+        cls,
+        value: Any,  # noqa: ANN401 # pyright: ignore[reportExplicitAny, reportAny]
+        handler: ValidatorFunctionWrapHandler,
+    ) -> list[Extension]:
+        try:
+            return handler(value)  # pyright: ignore[reportAny]
+        except ValidationError:
+            if isinstance(value, list) and _are_all(value, str):  # pyright: ignore[reportUnknownArgumentType]
+                return [Extension.model_validate({"extension-id": i}) for i in value]
+            raise
 
 
 class ConfigParser(ABC):

@@ -5,15 +5,16 @@ from asyncio import Task
 from asyncio import Event
 from asyncio import create_task
 from logging import getLogger
+from urllib.parse import parse_qs
+
 from aiohttp.web import AppKey
 from aiohttp.web import Request
 from aiohttp.web import Response
 from aiohttp.web import Application
-from urllib.parse import parse_qs
+
 from crx_repo.cache import Cache
 from crx_repo.cache import MemoryCache
 from crx_repo.utils import has_package
-from crx_repo.chrome import ChromeExtensionDownloader
 from crx_repo.config import Config
 from crx_repo.manifest import App
 from crx_repo.manifest import GUpdate
@@ -53,7 +54,8 @@ def setup(config: Config, event: Event) -> Application:
     """
     app = Application(logger=logger)
     extensions = {
-        extension: AppKey(extension, Task[None]) for extension in config.extensions
+        AppKey(extension.extension_id, Task[None]): extension
+        for extension in config.extensions
     }
     cache_watcher_key = AppKey(CACHE_WATCHER_KEY, Task[None])
     cache_key = AppKey(CACHE_KEY, Cache)
@@ -69,10 +71,9 @@ def setup(config: Config, event: Event) -> Application:
     async def on_cleanup_ctx_async(app: Application):
         app[cache_key] = MemoryCache(config.cache_dir, app, prefix, "crx-handler")
         app[cache_watcher_key] = create_task(app[cache_key].watch())
-        for extension_id, extension_key in extensions.items():
+        for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
-                ChromeExtensionDownloader(
-                    extension_id,
+                extension.get_downloader(
                     config.version,
                     config.proxy,
                     app[cache_key],
@@ -81,7 +82,7 @@ def setup(config: Config, event: Event) -> Application:
 
         yield
 
-        for extension_key in extensions.values():
+        for extension_key in extensions:
             _ = app[extension_key].cancel()
             await app[extension_key]
         _ = app[cache_watcher_key].cancel()

@@ -1,7 +1,9 @@
 """Test src/crx_repo/toml.py."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from crx_repo.toml import TomlConfigParser
 
 

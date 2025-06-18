@@ -1,6 +1,7 @@
 """Test src/crx_repo/client.py."""
 
 import pytest
+
 from crx_repo.client import VersionComparationResult
 from crx_repo.client import compare_version_string
 

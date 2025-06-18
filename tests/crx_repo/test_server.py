@@ -1,10 +1,12 @@
 """Test src/crx_repo/server.py."""
 
-import pytest
 from asyncio import Event
 from pathlib import Path
+
+import pytest
 from aiohttp.web import HTTPOk
 from pytest_aiohttp import AiohttpClient
+
 from crx_repo.config import Config
 from crx_repo.server import setup
 
