@@ -62,6 +62,9 @@ async def __parse_async(config: Path) -> Config:
 async def __launch_async(config: Path):
     loop = get_event_loop()
     deserialized_config = await __parse_async(config)
+    logger.setLevel(deserialized_config.log_level)
+    for handler in logger.handlers:
+        handler.setLevel(deserialized_config.log_level)
     event = Event()
     app = setup(deserialized_config, event)
     runner = AppRunner(app)
