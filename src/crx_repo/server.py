@@ -109,7 +109,7 @@ def setup(config: Config, event: Event) -> Application:
                 }
                 extension_id = extension_query.get("id")
                 extension_version = extension_query.get("v")
-                if extension_id is not None and extension_version is not None:
+                if extension_id is not None:
                     logger.debug(
                         "Extension in query params: %s=%s",
                         extension_id,
