@@ -1,12 +1,16 @@
 # Crx Repo
 
-Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest.
+Download Chrom(e|ium) extensions from various sources and serve a update manifest.
 
 [![Test, build and create releases.](/../../actions/workflows/ci.yaml/badge.svg)](/../../actions/workflows/ci.yaml)
 
+## Supported sources
+
+- Chrome Web Store
+
 ## Usage
 
-1. Get wheel from [Release](/../../releases) or build it yourself.
+1. Get wheel from [Release](/../../releases) or [build](#build) it yourself.
 2. Install the wheel in your system.
 3. Run `crx-repo` to know how to use the cli.
 
@@ -14,7 +18,7 @@ Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manife
 
 1. Prepare uv: See [here](https://docs.astral.sh/uv/getting-started/installation/) for more info.
 
-   For Linux/macOS users: we recommend using your package manager like `apt-get`, `brew`, `pacman` or `dnf` to install it.
+   We recommend using your package manager like `winget`, `apt-get`, `brew`, `pacman` or `dnf` to install it.
    This will install uv with managed.
 
 2. Build wheel: Run `uv build` in the repository.
