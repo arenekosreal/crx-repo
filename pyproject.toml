@@ -83,14 +83,10 @@ required-version = ">=0.6.2"
 select = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
-# tests are usually using assert and private objects
-# pyright is not happy when using i.attr
-# test __eq__ function should not be changed to ==
+# tests are usually using assert
 # Needs to group tests with method.
 # No need __init__.py
 "tests/**.py" = ["S101", "PLR6301", "INP001"]
-# async generator is required by aiohttp
-"src/crx_repo/__init__.py" = ["RUF029"]
 # async generator is required by aiohttp
 "src/crx_repo/server.py" = ["RUF029"]
 
