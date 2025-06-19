@@ -4,6 +4,7 @@ from asyncio import Task
 from asyncio import Event
 from asyncio import create_task
 from logging import getLogger
+from pathlib import Path
 from urllib.parse import parse_qs
 
 from aiohttp.web import AppKey
@@ -31,6 +32,10 @@ async def _wait_tasks(app: Application, *task_keys: AppKey[Task[None]]):
     for task_key in task_keys:
         if task_key in app and not app[task_key].done():
             await app[task_key]
+
+
+def _get_cache(path: Path, app: Application, prefix: str, router_name: str) -> Cache:
+    return MemoryCache(path, app, prefix, router_name)
 
 
 def _update_gupdate(
@@ -77,8 +82,10 @@ def setup(config: Config, event: Event) -> Application:
     async def on_cleanup_ctx_async(app: Application):
         watcher_stop_event = Event()
         downloader_stop_event = Event()
-        app[cache_key] = MemoryCache(config.cache_dir, app, prefix, "crx-handler")
+        app[cache_key] = _get_cache(config.cache_dir, app, prefix, "crx-handler")
+        logger.debug("Creted cache at %s.", config.cache_dir)
         app[cache_watcher_key] = create_task(app[cache_key].watch(watcher_stop_event))
+        logger.debug("Started watching cache changes.")
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
                 extension.get_downloader(
@@ -87,11 +94,16 @@ def setup(config: Config, event: Event) -> Application:
                     app[cache_key],
                 ).download_forever(config.interval, downloader_stop_event),
             )
+            logger.debug("Created downloder for extension %s.", extension.extension_id)
+        logger.debug("Background tasks initialized successfully.")
 
         yield
 
+        logger.debug("Stopping downloaders...")
         downloader_stop_event.set()
+        logger.debug("Stopping watching cache changes...")
         watcher_stop_event.set()
+        logger.debug("Waiting for existing tasks...")
         await _wait_tasks(app, *extensions.keys(), cache_watcher_key)
         event.set()
 
