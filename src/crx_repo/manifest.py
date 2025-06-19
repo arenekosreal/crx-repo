@@ -20,6 +20,9 @@ from pydantic_xml import element
 
 CHROME_MANIFEST_XML_NAMESPACE = "http://www.google.com/update2/response"
 
+type ResponseStatus = Literal["ok"]
+type ProtocolVersion = Literal["2.0"]
+
 
 class UpdateCheck(
     BaseXmlModel,
@@ -44,7 +47,7 @@ class App(
     """The model of <app> element."""
 
     appid: str = attr()
-    status: Literal["ok"] = attr()
+    status: ResponseStatus = attr()
     updatechecks: list[UpdateCheck] = element(tag="updatecheck")
 
 
@@ -57,4 +60,4 @@ class GUpdate(
     """The model of <gupdate> element."""
 
     apps: list[App] = element(tag="app")
-    protocol: Literal["2.0"] = attr()
+    protocol: ProtocolVersion = attr()

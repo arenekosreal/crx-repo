@@ -26,6 +26,7 @@ from crx_repo.client import ExtensionDownloader
 
 
 type LogLevelType = Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+type ExtensionProvider = Literal["chrome"]
 
 
 def _to_kebab(string: str) -> str:
@@ -124,7 +125,7 @@ class Extension(BaseModel):
     """Extension config."""
 
     extension_id: str = Field(max_length=32, min_length=32)
-    extension_provider: Literal["chrome"] = "chrome"
+    extension_provider: ExtensionProvider = "chrome"
 
     def get_downloader(
         self,

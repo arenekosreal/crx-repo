@@ -1,6 +1,5 @@
 """Classes and functions for serving manifest."""
 
-from typing import Literal
 from asyncio import Task
 from asyncio import Event
 from asyncio import create_task
@@ -19,6 +18,7 @@ from crx_repo.config import Config
 from crx_repo.manifest import App
 from crx_repo.manifest import GUpdate
 from crx_repo.manifest import UpdateCheck
+from crx_repo.manifest import ResponseStatus
 
 
 logger = getLogger(__name__)
@@ -37,7 +37,7 @@ def _update_gupdate(
     gupdate: GUpdate,
     update_check: UpdateCheck,
     extension_id: str,
-    status: Literal["ok"],
+    status: ResponseStatus,
 ):
     for app in gupdate.apps:
         if app.appid == extension_id:
