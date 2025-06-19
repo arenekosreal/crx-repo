@@ -1,4 +1,4 @@
-"""Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."""
+"""Download Chrom(e|ium) extensions from various sources and serve a update manifest."""
 
 __version__ = "0.3.1"
 
@@ -35,7 +35,7 @@ if has_package("uvloop"):
 else:
     from asyncio import run
 logger = getLogger(__name__)
-main = Typer(help=__doc__)
+main = Typer()
 
 
 class ParseError(RuntimeError):
@@ -106,7 +106,7 @@ def __version(value: bool):  # noqa: FBT001
         raise Exit
 
 
-@main.command()
+@main.command(help=__doc__)
 def _(
     config: Annotated[Path, Option(help="Config file path.")],
     log_level: Annotated[

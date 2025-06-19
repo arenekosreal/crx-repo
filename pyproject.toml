@@ -12,7 +12,7 @@ dependencies = [
     "aiofiles>=24.1.0",
 ]
 name = "crx-repo"
-description = "Download Chrom(e|ium) extensions from Chrome Web Store and serve a update manifest."
+description = "Download Chrom(e|ium) extensions from various sources and serve a update manifest."
 readme = "README.md"
 dynamic = ["version"]
 
