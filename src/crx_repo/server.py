@@ -28,12 +28,6 @@ CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
 
 
-async def _wait_tasks(app: Application, *task_keys: AppKey[Task[None]]):
-    for task_key in task_keys:
-        if task_key in app and not app[task_key].done():
-            await app[task_key]
-
-
 def _get_cache(path: Path, app: Application, prefix: str, router_name: str) -> Cache:
     return MemoryCache(path, app, prefix, router_name)
 
@@ -80,11 +74,9 @@ def setup(config: Config, event: Event) -> Application:
     )
 
     async def on_cleanup_ctx_async(app: Application):
-        watcher_stop_event = Event()
-        downloader_stop_event = Event()
         app[cache_key] = _get_cache(config.cache_dir, app, prefix, "crx-handler")
         logger.debug("Creted cache at %s.", config.cache_dir)
-        app[cache_watcher_key] = create_task(app[cache_key].watch(watcher_stop_event))
+        app[cache_watcher_key] = create_task(app[cache_key].watch(stop_event=event))
         logger.debug("Started watching cache changes.")
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
@@ -92,19 +84,14 @@ def setup(config: Config, event: Event) -> Application:
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval, downloader_stop_event),
+                ).download_forever(config.interval, event),
             )
             logger.debug("Created downloder for extension %s.", extension.extension_id)
         logger.debug("Background tasks initialized successfully.")
 
         yield
 
-        logger.debug("Stopping downloaders...")
-        downloader_stop_event.set()
-        logger.debug("Stopping watching cache changes...")
-        watcher_stop_event.set()
-        logger.debug("Waiting for existing tasks...")
-        await _wait_tasks(app, *extensions.keys(), cache_watcher_key)
+        logger.debug("Stopping downloaders and watcher...")
         event.set()
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)

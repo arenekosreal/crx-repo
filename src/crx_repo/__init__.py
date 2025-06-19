@@ -3,8 +3,12 @@
 __version__ = "0.3.0"
 
 
+from signal import SIGINT
+from signal import SIGTERM
 from typing import Annotated
 from asyncio import Event
+from asyncio import create_task
+from asyncio import get_event_loop
 from logging import Formatter
 from logging import StreamHandler
 from logging import getLogger
@@ -56,6 +60,7 @@ async def __parse_async(config: Path) -> Config:
 
 
 async def __launch_async(config: Path):
+    loop = get_event_loop()
     deserialized_config = await __parse_async(config)
     event = Event()
     app = setup(deserialized_config, event)
@@ -81,10 +86,15 @@ async def __launch_async(config: Path):
         )
         await site.start()
 
+    async def _exit():
+        logger.info("Exiting...")
+        await runner.cleanup()
+
+    loop.add_signal_handler(SIGTERM, create_task, _exit())
+    loop.add_signal_handler(SIGINT, create_task, _exit())
+    logger.debug("Running with event loop %s...", loop)
     logger.info("Starting web server...")
     _ = await event.wait()
-    logger.info("Exiting...")
-    await runner.cleanup()
 
 
 def __version(value: bool):  # noqa: FBT001

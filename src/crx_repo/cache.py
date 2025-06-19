@@ -5,6 +5,7 @@ from abc import abstractmethod
 from typing import final
 from typing import override
 from asyncio import Event
+from asyncio import CancelledError
 from hashlib import sha256
 from logging import getLogger
 from pathlib import Path
@@ -172,26 +173,29 @@ class MemoryCache(Cache):
 
     @override
     async def watch(self, stop_event: Event):
-        async for changes in awatch(
-            self.path,
-            watch_filter=lambda change, path: change != Change.modified
-            and path.endswith(".crx"),
-            stop_event=stop_event,
-        ):
-            for change, path_str in changes:
-                path = Path(path_str)
-                extension_info = path.parent.stem, path.stem
-                match change:
-                    case Change.added:
-                        self.extension_infos.add(extension_info)
-                    case Change.deleted:
-                        for filtered_extension_info in filter(
-                            lambda info: info == extension_info,
-                            self.extension_infos,
-                        ):
-                            self.extension_infos.remove(filtered_extension_info)
-                    case _:
-                        pass
+        try:
+            async for changes in awatch(
+                self.path,
+                watch_filter=lambda change, path: change != Change.modified
+                and path.endswith(".crx"),
+                stop_event=stop_event,
+            ):
+                for change, path_str in changes:
+                    path = Path(path_str)
+                    extension_info = path.parent.stem, path.stem
+                    match change:
+                        case Change.added:
+                            self.extension_infos.add(extension_info)
+                        case Change.deleted:
+                            for filtered_extension_info in filter(
+                                lambda info: info == extension_info,
+                                self.extension_infos,
+                            ):
+                                self.extension_infos.remove(filtered_extension_info)
+                        case _:
+                            pass
+        except CancelledError:
+            pass
         logger.debug("Stopping watcher...")
 
     @override
