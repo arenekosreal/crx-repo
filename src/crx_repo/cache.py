@@ -131,6 +131,22 @@ class Cache(ABC):
             ```
         """
 
+    @abstractmethod
+    def extension_codebase(
+        self, base: str, prefix: str, extension_id: str, extension_version: str,
+    ) -> str:
+        """Get codebase address of extension.
+
+        Args:
+            base(str): The host:port of final url.
+            prefix(str): The extra part after base of final url.
+            extension_id(str): The id of extension.
+            extension_version(str): The version of extension.
+
+        Returns:
+            str: The final url.
+        """
+
 
 @final
 class MemoryCache(Cache):
@@ -219,3 +235,9 @@ class MemoryCache(Cache):
     @override
     def extension_files(self, extension_id: str) -> Iterator[Path]:
         return (self.path / extension_id).glob("*.crx")
+
+    @override
+    def extension_codebase(
+        self, base: str, prefix: str, extension_id: str, extension_version: str,
+    ) -> str:
+        return f"{base}{prefix}/{extension_id}/{extension_version}.crx"
