@@ -2,7 +2,6 @@
 
 from abc import ABC
 from abc import abstractmethod
-from enum import Enum
 from typing import final
 from asyncio import Event
 from asyncio import CancelledError
@@ -22,48 +21,6 @@ from crx_repo.manifest import UpdateCheck
 
 
 logger = getLogger(__name__)
-
-
-class VersionComparationResult(Enum):
-    """An Enum to represent result of version comparation."""
-
-    LessThan = -1
-    Equal = 0
-    GreaterThan = 1
-
-
-def _try_get_int(strings: list[str], index: int, default: int) -> int:
-    if len(strings) >= index + 1:
-        try:
-            return int(strings[index])
-        except ValueError:
-            return default
-    return default
-
-
-def compare_version_string(a: str, b: str) -> VersionComparationResult:
-    """Compare version string.
-
-    Args:
-        a(str): Version string a
-        b(str): Version string b
-
-    Returns:
-        VersionComparationResult: If a is greater than b.
-    """
-    logger.debug("Comparing %s and %s...", a, b)
-    splited_a = a.split(".")
-    splited_b = b.split(".")
-    max_component_count = max(len(splited_a), len(splited_b))
-    for i in range(max_component_count):
-        a_value = _try_get_int(splited_a, i, 0)
-        b_value = _try_get_int(splited_b, i, 0)
-        logger.debug("Comparing part %d and %d...", a_value, b_value)
-        if a_value > b_value:
-            return VersionComparationResult.GreaterThan
-        if a_value < b_value:
-            return VersionComparationResult.LessThan
-    return VersionComparationResult.Equal
 
 
 class ExtensionDownloader(ABC):
@@ -148,18 +105,19 @@ class ExtensionDownloader(ABC):
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
-    async def download_forever(self, interval: PositiveInt, stop_event: Event):
+    async def download_forever(
+        self, interval: PositiveInt, stop_event: Event, base: str, prefix: str,
+    ):
         """Download extensions forever if it is needed to do."""
         while not stop_event.is_set():
             try:
                 async with ClientSession() as session:
-                    extension_files = sorted(
-                        self.__cache.extension_files(self._extension_id),
-                        key=lambda p: p.stat().st_mtime,
+                    gupdate = await self.__cache.get_gupdate_async(
+                        base, prefix, self._extension_id,
                     )
-
+                    extension = gupdate.get_extension(self._extension_id)
                     update = await self._check_updates(
-                        extension_files[-1].stem if len(extension_files) > 0 else None,
+                        extension.latest_version if extension is not None else None,
                         session,
                     )
                     if update is not None:
@@ -168,17 +126,18 @@ class ExtensionDownloader(ABC):
                             self._extension_id,
                             update.version,
                         )
-                        path = self.__cache.extension_path(
+                        async with self.__cache.new_extension_async(
                             self._extension_id,
                             update.version,
-                        )
-                        await self.__download(
-                            update.codebase,
-                            path,
-                            session,
-                            update.size,
-                            update.hash_sha256,
-                        )
+                            prodversionmin=update.prodversionmin,
+                        ) as path:
+                            await self.__download(
+                                update.codebase,
+                                path,
+                                session,
+                                update.size,
+                                update.hash_sha256,
+                            )
                 await sleep(interval)
             except CancelledError:
                 break

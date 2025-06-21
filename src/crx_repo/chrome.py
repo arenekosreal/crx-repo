@@ -10,9 +10,9 @@ from aiohttp import ClientSession
 from pydantic import ValidationError
 from aiohttp.web import HTTPOk
 
+from crx_repo.utils import VersionComparationResult
+from crx_repo.utils import compare_version_string
 from crx_repo.client import ExtensionDownloader
-from crx_repo.client import VersionComparationResult
-from crx_repo.client import compare_version_string
 from crx_repo.manifest import GUpdate
 from crx_repo.manifest import UpdateCheck
 

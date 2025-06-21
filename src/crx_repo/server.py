@@ -5,6 +5,7 @@ from asyncio import Event
 from asyncio import create_task
 from logging import getLogger
 from pathlib import Path
+from itertools import chain
 from urllib.parse import parse_qs
 
 from aiohttp.web import AppKey
@@ -16,34 +17,16 @@ from crx_repo.cache import Cache
 from crx_repo.cache import MemoryCache
 from crx_repo.utils import has_package
 from crx_repo.config import Config
-from crx_repo.manifest import App
 from crx_repo.manifest import GUpdate
-from crx_repo.manifest import UpdateCheck
-from crx_repo.manifest import ResponseStatus
 
 
 logger = getLogger(__name__)
 
-CACHE_WATCHER_KEY = "cache-watcher"
 CACHE_KEY = "cache"
 
 
 def _get_cache(path: Path, app: Application, prefix: str, router_name: str) -> Cache:
     return MemoryCache(path, app, prefix, router_name)
-
-
-def _update_gupdate(
-    gupdate: GUpdate,
-    update_check: UpdateCheck,
-    extension_id: str,
-    status: ResponseStatus,
-):
-    for app in gupdate.apps:
-        if app.appid == extension_id:
-            app.updatechecks.append(update_check)
-            return
-    app = App(appid=extension_id, status=status, updatechecks=[update_check])
-    gupdate.apps.append(app)
 
 
 def setup(config: Config, event: Event) -> Application:
@@ -62,7 +45,6 @@ def setup(config: Config, event: Event) -> Application:
         AppKey(extension.extension_id, Task[None]): extension
         for extension in config.extensions
     }
-    cache_watcher_key = AppKey(CACHE_WATCHER_KEY, Task[None])
     cache_key = AppKey(CACHE_KEY, Cache)
 
     base = config.base.removesuffix("/") if config.base.endswith("/") else config.base
@@ -76,22 +58,20 @@ def setup(config: Config, event: Event) -> Application:
     async def on_cleanup_ctx_async(app: Application):
         app[cache_key] = _get_cache(config.cache_dir, app, prefix, "crx-handler")
         logger.debug("Creted cache at %s.", config.cache_dir)
-        app[cache_watcher_key] = create_task(app[cache_key].watch(stop_event=event))
-        logger.debug("Started watching cache changes.")
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
                 extension.get_downloader(
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval, event),
+                ).download_forever(config.interval, event, base, prefix),
             )
             logger.debug("Created downloder for extension %s.", extension.extension_id)
         logger.debug("Background tasks initialized successfully.")
 
         yield
 
-        logger.debug("Stopping downloaders and watcher...")
+        logger.debug("Stopping downloaders...")
         event.set()
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)
@@ -99,8 +79,9 @@ def setup(config: Config, event: Event) -> Application:
     async def handle_manifest(request: Request) -> Response:
         logger.debug("Handling query params keys %s...", list(request.query.keys()))
 
-        extension_infos: list[tuple[str, str]] = []
+        gupdate = None
         if "x" in request.query:
+            gupdate = GUpdate(apps=[], protocol="2.0")
             logger.debug("Query found, sending filtered extensions...")
             for x in request.query.getall("x"):
                 logger.debug("Parsing extension query %s...", x)
@@ -115,39 +96,24 @@ def setup(config: Config, event: Event) -> Application:
                         extension_id,
                         extension_version,
                     )
-                    extension_infos.extend(
-                        request.app[cache_key].iter_extensions(
-                            extension_id,
-                            extension_version,
+                    gupdate.apps = list(
+                        chain(
+                            gupdate.apps,
+                            (
+                                await request.app[cache_key].get_gupdate_async(
+                                    base,
+                                    prefix,
+                                    extension_id,
+                                    extension_version,
+                                )
+                            ).apps,
                         ),
                     )
-        else:
+            if len(gupdate.apps) == 0:
+                gupdate = None
+        if gupdate is None:
             logger.debug("No query found, sending all extensions...")
-            extension_infos.extend(request.app[cache_key].iter_extensions())
-
-        gupdate = GUpdate(apps=[], protocol="2.0")
-
-        for extension_id, extension_version in extension_infos:
-            codebase = app[cache_key].extension_codebase(
-                base, prefix, extension_id, extension_version,
-            )
-            version = extension_version
-            status = "ok"
-            size = request.app[cache_key].extension_size(
-                extension_id,
-                extension_version,
-            )
-            hash_sha256 = await request.app[cache_key].extension_sha256_async(
-                extension_id,
-                extension_version,
-            )
-            update_check = UpdateCheck(
-                codebase=codebase,
-                hash_sha256=hash_sha256,
-                size=size,
-                version=version,
-            )
-            _update_gupdate(gupdate, update_check, extension_id, status)
+            gupdate = await request.app[cache_key].get_gupdate_async(base, prefix)
 
         body = gupdate.to_xml(
             exclude_none=True,
