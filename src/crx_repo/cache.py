@@ -122,7 +122,7 @@ class MemoryCache(Cache):
         **data: MetadataSupportedType,
     ):
         _ = self.__metadata_path(extension_id, extension_version).write_text(
-            dumps(data, sort_keys=True, indent=4)
+            dumps(data, sort_keys=True, indent=4),
         )
 
     @override
