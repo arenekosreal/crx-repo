@@ -5,7 +5,6 @@ from hashlib import sha256
 from pathlib import Path
 
 import pytest
-from aiofiles import open as aioopen
 from aiohttp.web import Application
 
 from crx_repo.cache import MemoryCache
@@ -20,38 +19,37 @@ def cache(tmp_path: Path) -> MemoryCache:
 class TestMemoryCache:
     """Test MemoryCache object."""
 
-    def test_extension_path(self, tmp_path: Path, cache: MemoryCache):
-        """Test `crx_repo.cache.MemoryCache.extension_path` method."""
-        path = cache.extension_path("example-id", "example-version")
-        assert path == tmp_path / "example-id" / "example-version.crx"
-
-    def test_extension_size(self, cache: MemoryCache):
-        """Test `crx_repo.cache.MemoryCache.extension_size` method."""
-        size = cache.extension_size("example-id", "example-version")
-        assert size == 0
+    @pytest.mark.asyncio
+    async def test_new_extension_async(self, cache: MemoryCache, tmp_path: Path):
+        """Test `crx_repo.cache.MemoryCache.new_extension_async` method."""
+        async with cache.new_extension_async(
+            "example-id",
+            "example-ver",
+            metakey="metaver",
+        ) as path:
+            path.parent.mkdir(parents=True)
+            _ = path.write_bytes(randbytes(42))  # noqa: S311
+        target_file = tmp_path / "example-id" / "example-ver.crx"
+        meta_file = tmp_path / "example-id" / "example-ver.meta.json"
+        assert target_file.is_file()
+        assert meta_file.is_file()
 
     @pytest.mark.asyncio
-    async def test_extension_sha256_async(self, tmp_path: Path, cache: MemoryCache):
-        """Test `crx_repo.cache.MemoryCache.extension_sha256_async` method."""
-        example_file = tmp_path / "example-id" / "example-version.crx"
-        data = randbytes(42)  # noqa: S311
-        target_hash = sha256(data).hexdigest()
-        example_file.parent.mkdir(exist_ok=True, parents=True)
-        async with aioopen(example_file, "wb") as writer:
-            _ = await writer.write(data)
-        actual_hash = await cache.extension_sha256_async(
+    async def test_get_gupdate_async(self, cache: MemoryCache):
+        """Test `crx_repo.cache.MemoryCache.get_gupdate_async` method."""
+        mock_data = randbytes(42)  # noqa: S311
+        mock_data_hash = sha256(mock_data).hexdigest()
+        async with cache.new_extension_async(
             "example-id",
-            "example-version",
-        )
-        assert actual_hash == target_hash
-
-    def test_extension_codebase(self, cache: MemoryCache):
-        """Test `crx_repo.cache.MemoryCache.extension_codebase` method."""
-        result = cache.extension_codebase(
-            "http://example.com",
-            "/example-prefix",
-            "example-id",
-            "example-version",
-        )
-        target = "http://example.com/example-prefix/example-id/example-version.crx"
-        assert result == target
+            "example-ver",
+            metakey="metaver",
+        ) as path:
+            path.parent.mkdir(parents=True)
+            _ = path.write_bytes(mock_data)
+        gupdate = await cache.get_gupdate_async("https://example.com", "/prefix")
+        assert len(gupdate.apps) == 1
+        app = gupdate.apps[0]
+        assert len(app.updatechecks) == 1
+        assert app.appid == "example-id"
+        updatecheck = app.updatechecks[0]
+        assert updatecheck.hash_sha256 == mock_data_hash

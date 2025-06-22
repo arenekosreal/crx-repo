@@ -1,6 +1,5 @@
 """Test src/crx_repo/server.py."""
 
-from asyncio import Event
 from pathlib import Path
 
 import pytest
@@ -33,8 +32,7 @@ async def test_setup(
     aiohttp_client: AiohttpClient,
 ):
     """Test `crx_repo.server.setup` function."""
-    event = Event()
-    app = setup(config, event)
+    app = setup(config)
     client = await aiohttp_client(app)
     async with client.get("/updates.xml") as response:
         assert response.status == HTTPOk.status_code
