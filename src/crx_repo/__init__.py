@@ -65,7 +65,7 @@ async def __launch_async(config: Path):
     for handler in logger.handlers:
         handler.setLevel(deserialized_config.log_level)
     event = Event()
-    app = setup(deserialized_config, event)
+    app = setup(deserialized_config)
     runner = AppRunner(app)
     await runner.setup()
     if deserialized_config.listen.tcp is not None:

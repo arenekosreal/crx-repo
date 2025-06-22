@@ -1,7 +1,6 @@
 """Classes and functions for serving manifest."""
 
 from asyncio import Task
-from asyncio import Event
 from asyncio import create_task
 from logging import getLogger
 from pathlib import Path
@@ -29,13 +28,12 @@ def _get_cache(path: Path, app: Application, prefix: str, router_name: str) -> C
     return MemoryCache(path, app, prefix, router_name)
 
 
-def setup(config: Config, event: Event) -> Application:
+def setup(config: Config) -> Application:
     """Setup an `aiohttp.web.Application` instance.
 
     Args:
         config(Config): The deserialized config.
         debug(bool): If set application in debug mode.
-        event(Event): The `asyncio.Event` object for blocking without sleeping forever.
 
     Returns:
         Application: The `aiohttp.web.Application` object which can be run later.
@@ -64,7 +62,7 @@ def setup(config: Config, event: Event) -> Application:
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval, event, base, prefix),
+                ).download_forever(config.interval, base, prefix),
             )
             logger.debug("Created downloder for extension %s.", extension.extension_id)
         logger.debug("Background tasks initialized successfully.")

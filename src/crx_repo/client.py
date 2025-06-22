@@ -3,7 +3,6 @@
 from abc import ABC
 from abc import abstractmethod
 from typing import final
-from asyncio import Event
 from asyncio import CancelledError
 from asyncio import sleep
 from hashlib import sha256
@@ -106,14 +105,19 @@ class ExtensionDownloader(ABC):
             _ = temp_crx.replace(path)
 
     async def download_forever(
-        self, interval: PositiveInt, stop_event: Event, base: str, prefix: str,
+        self,
+        interval: PositiveInt,
+        base: str,
+        prefix: str,
     ):
         """Download extensions forever if it is needed to do."""
-        while not stop_event.is_set():
-            try:
+        try:
+            while True:
                 async with ClientSession() as session:
                     gupdate = await self.__cache.get_gupdate_async(
-                        base, prefix, self._extension_id,
+                        base,
+                        prefix,
+                        self._extension_id,
                     )
                     extension = gupdate.get_extension(self._extension_id)
                     update = await self._check_updates(
@@ -139,8 +143,8 @@ class ExtensionDownloader(ABC):
                                 update.hash_sha256,
                             )
                 await sleep(interval)
-            except CancelledError:
-                break
+        except CancelledError:
+            pass
         logger.debug(
             "Exitting downloader for extension %s...",
             self._extension_id,
