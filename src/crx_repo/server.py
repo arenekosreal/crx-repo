@@ -72,7 +72,9 @@ def setup(config: Config, event: Event) -> Application:
         yield
 
         logger.debug("Stopping downloaders...")
-        event.set()
+        for extension_key in extensions:
+            _ = app[extension_key].cancel()
+            await app[extension_key]
 
     app.cleanup_ctx.append(on_cleanup_ctx_async)
 

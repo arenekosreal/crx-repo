@@ -7,7 +7,6 @@ from signal import SIGINT
 from signal import SIGTERM
 from typing import Annotated
 from asyncio import Event
-from asyncio import create_task
 from asyncio import get_event_loop
 from logging import Formatter
 from logging import StreamHandler
@@ -89,15 +88,13 @@ async def __launch_async(config: Path):
         )
         await site.start()
 
-    async def _exit():
-        logger.info("Exiting...")
-        await runner.cleanup()
-
-    loop.add_signal_handler(SIGTERM, create_task, _exit())
-    loop.add_signal_handler(SIGINT, create_task, _exit())
+    for signal in [SIGTERM, SIGINT]:
+        loop.add_signal_handler(signal, event.set)
     logger.debug("Running with event loop %s...", loop)
     logger.info("Starting web server...")
     _ = await event.wait()
+    logger.info("Exiting...")
+    await runner.cleanup()
 
 
 def __version(value: bool):  # noqa: FBT001
