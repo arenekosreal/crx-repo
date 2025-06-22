@@ -11,7 +11,6 @@ from pathlib import Path
 
 from aiohttp import ClientError
 from aiohttp import ClientSession
-from aiofiles import open as aioopen
 from pydantic import PositiveInt
 from aiohttp.web import HTTPOk
 
@@ -79,12 +78,12 @@ class ExtensionDownloader(ABC):
             hash_calculator = sha256()
             temp_crx = path.with_name(path.name + ".part")
             temp_crx.parent.mkdir(exist_ok=True, parents=True)
-            async with aioopen(temp_crx, "wb") as writer:
+            with temp_crx.open("wb") as writer:
                 try:
                     async for chunk in response.content.iter_chunked(
                         self.CHUNK_SIZE_BYTES,
                     ):
-                        chunk_size = await writer.write(chunk)
+                        chunk_size = writer.write(chunk)
                         hash_calculator.update(chunk)
                         logger.debug("Writing %d byte(s) into %s...", chunk_size, path)
                 except (TimeoutError, ClientError):

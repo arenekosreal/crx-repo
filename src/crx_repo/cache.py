@@ -12,7 +12,6 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from aiofiles import open as aioopen
 from aiohttp.web import Application
 
 from crx_repo.utils import VersionComparationResult
@@ -114,9 +113,7 @@ class MemoryCache(Cache):
         extension_id: str,
         extension_version: str,
     ) -> dict[str, MetadataSupportedType]:
-        metadata_path = self.__metadata_path(extension_id, extension_version)
-        async with aioopen(metadata_path) as reader:
-            return loads(await reader.read())  # pyright: ignore[reportAny]
+        return loads(self.__metadata_path(extension_id, extension_version).read_text())  # pyright: ignore[reportAny]
 
     async def __write_metadata(
         self,
@@ -124,9 +121,9 @@ class MemoryCache(Cache):
         extension_version: str,
         **data: MetadataSupportedType,
     ):
-        metadata_path = self.__metadata_path(extension_id, extension_version)
-        async with aioopen(metadata_path, "w") as writer:
-            _ = await writer.write(dumps(data, sort_keys=True, indent=4))
+        _ = self.__metadata_path(extension_id, extension_version).write_text(
+            dumps(data, sort_keys=True, indent=4)
+        )
 
     @override
     @asynccontextmanager
@@ -163,8 +160,7 @@ class MemoryCache(Cache):
                 if cmp_result == VersionComparationResult.LessThan:
                     continue
             codebase = f"{base}{prefix}/{cur_ext_id}/{cur_ext_ver}.crx"
-            async with aioopen(extension, "rb") as reader:
-                hash_sha256 = sha256(await reader.read()).hexdigest()
+            hash_sha256 = sha256(extension.read_bytes()).hexdigest()
             size = extension.stat().st_size
             prodversionmin = (await self.__read_metadata(cur_ext_id, cur_ext_ver)).get(
                 "prodversionmin",
