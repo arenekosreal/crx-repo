@@ -34,7 +34,7 @@ async def test_setup(
     """Test `crx_repo.server.setup` function."""
     app = setup(config)
     client = await aiohttp_client(app)
-    async with client.get("/updates.xml") as response:
+    async with client.get("/crx-repo/updates.xml") as response:
         assert response.status == HTTPOk.status_code
         content = await response.text()
         assert content
