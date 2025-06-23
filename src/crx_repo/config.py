@@ -98,11 +98,10 @@ class ListenConfig(BaseModel):
 
     @field_validator("tcp")
     @classmethod
-    def tcp_is_not_none(
+    def _tcp_is_not_none(
         cls,
         value: TcpListenConfig | None,
     ) -> TcpListenConfig | None:
-        """Ensure tcp and unix are not None either."""
         if value is None and cls.unix is None:
             first = "tcp"
             second = "unix"
@@ -111,11 +110,10 @@ class ListenConfig(BaseModel):
 
     @field_validator("unix")
     @classmethod
-    def unix_is_not_none(
+    def _unix_is_not_none(
         cls,
         value: UnixListenConfig | None,
     ) -> UnixListenConfig | None:
-        """Ensure unix and tcp are not None either."""
         if value is None and cls.tcp is None:
             first = "tcp"
             second = "unix"
