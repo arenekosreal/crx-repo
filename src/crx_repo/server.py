@@ -41,7 +41,7 @@ def setup(config: Config) -> Application:
 
     base = config.base.removesuffix("/") if config.base.endswith("/") else config.base
     prefix = config.prefix if config.prefix.startswith("/") else "/" + config.prefix
-    manifest_path = (
+    manifest_path = prefix + (
         config.manifest_path
         if config.manifest_path.startswith("/")
         else "/" + config.manifest_path
