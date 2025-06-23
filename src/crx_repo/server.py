@@ -3,7 +3,6 @@
 from asyncio import Task
 from asyncio import create_task
 from logging import getLogger
-from pathlib import Path
 from itertools import chain
 from urllib.parse import parse_qs
 
@@ -13,7 +12,6 @@ from aiohttp.web import Response
 from aiohttp.web import Application
 
 from crx_repo.cache import Cache
-from crx_repo.cache import MemoryCache
 from crx_repo.utils import has_package
 from crx_repo.config import Config
 from crx_repo.manifest import GUpdate
@@ -22,10 +20,6 @@ from crx_repo.manifest import GUpdate
 logger = getLogger(__name__)
 
 CACHE_KEY = "cache"
-
-
-def _get_cache(path: Path, app: Application, prefix: str, router_name: str) -> Cache:
-    return MemoryCache(path, app, prefix, router_name)
 
 
 def setup(config: Config) -> Application:
@@ -54,7 +48,12 @@ def setup(config: Config) -> Application:
     )
 
     async def on_cleanup_ctx_async(app: Application):
-        app[cache_key] = _get_cache(config.cache_dir, app, prefix, "crx-handler")
+        app[cache_key] = config.get_cache(
+            config.cache_dir,
+            app.router,
+            prefix,
+            "crx-handler",
+        )
         logger.debug("Creted cache at %s.", config.cache_dir)
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
@@ -62,7 +61,7 @@ def setup(config: Config) -> Application:
                     config.version,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval, base, prefix),
+                ).download_forever(config.interval, base),
             )
             logger.debug("Created downloder for extension %s.", extension.extension_id)
         logger.debug("Background tasks initialized successfully.")
@@ -102,7 +101,6 @@ def setup(config: Config) -> Application:
                             (
                                 await request.app[cache_key].get_gupdate_async(
                                     base,
-                                    prefix,
                                     extension_id,
                                     extension_version,
                                 )
@@ -113,7 +111,7 @@ def setup(config: Config) -> Application:
                 gupdate = None
         if gupdate is None:
             logger.debug("No query found, sending all extensions...")
-            gupdate = await request.app[cache_key].get_gupdate_async(base, prefix)
+            gupdate = await request.app[cache_key].get_gupdate_async(base)
 
         body = gupdate.to_xml(
             exclude_none=True,

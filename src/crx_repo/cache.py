@@ -14,7 +14,11 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from aiohttp.web import Application
+from aiohttp.web import Request
+from aiohttp.web import Response
+from aiohttp.web import HTTPNotFound
+from aiohttp.web import UrlDispatcher
+from aiohttp.web import HTTPBadRequest
 
 from crx_repo.utils import VersionComparationResult
 from crx_repo.utils import compare_version_string
@@ -37,12 +41,18 @@ class Cache(ABC):
     """Abstract class for what a cache should do."""
 
     @abstractmethod
-    def __init__(self, cache: Path, app: Application, prefix: str, router_name: str):
+    def __init__(
+        self,
+        cache: Path,
+        router: UrlDispatcher,
+        prefix: str,
+        router_name: str,
+    ):
         """Initialize Cache with cache path.
 
         Args:
             cache(Path): The path of cache.
-            app(Application): The server application.
+            router(UrlDispatcher): The router to set handler for extension files.
             prefix(str): The prefix of request path.
             router_name(str): The name of router.
         """
@@ -77,7 +87,6 @@ class Cache(ABC):
     async def get_gupdate_async(
         self,
         base: str,
-        prefix: str,
         extension_id: str | None = None,
         extension_version: str | None = None,
     ) -> GUpdate:
@@ -85,7 +94,6 @@ class Cache(ABC):
 
         Args:
             base(str): The `scheme://host:port` part of codebase in UpdateCheck.
-            prefix(str): The extra after base in codebase.
             extension_id(str | None): The extension_id to filter, defaults to None.
             extension_version(str | None): The extension version to filter, defaults to None.
 
@@ -103,13 +111,38 @@ class MemoryCache(Cache):
     """
 
     @override
-    def __init__(self, cache: Path, app: Application, prefix: str, router_name: str):
+    def __init__(
+        self,
+        cache: Path,
+        router: UrlDispatcher,
+        prefix: str,
+        router_name: str,
+    ):
         self.__path = cache
         if self.__path.exists() and not self.__path.is_dir():
             logger.warning("Removing %s to create cache directory...", self.__path)
             self.__path.unlink()
         self.__path.mkdir(parents=True, exist_ok=True)
-        _ = app.router.add_static(prefix, self.__path, name=router_name)
+        self.__extensions = router.add_get(
+            prefix + "/{ext_id}/{ext_ver}.crx",
+            self.__handle_request_async,
+            name=router_name,
+        )
+
+    async def __handle_request_async(self, request: Request) -> Response:
+        ext_id = request.match_info.get("ext_id")
+        ext_ver = request.match_info.get("ext_ver")
+        if ext_id is not None and ext_ver is not None:
+            physical_path = self.__path / ext_id / (ext_ver + ".crx")
+            if physical_path.is_file():
+                return Response(
+                    body=physical_path.read_bytes(),
+                    # See https://developer.chrome.com/docs/extensions/how-to/distribute/host-on-linux#hosting
+                    # for how chrome think an extension is installable.
+                    content_type="application/x-chrome-extension",
+                )
+            raise HTTPNotFound(reason="No such file found in repo.")
+        raise HTTPBadRequest(reason="Extension version and id are required.")
 
     def __metadata_path(self, extension_id: str, extension_version: str) -> Path:
         return self.__path / extension_id / (extension_version + ".meta.json")
@@ -158,7 +191,6 @@ class MemoryCache(Cache):
     async def get_gupdate_async(
         self,
         base: str,
-        prefix: str,
         extension_id: str | None = None,
         extension_version: str | None = None,
     ) -> GUpdate:
@@ -168,11 +200,12 @@ class MemoryCache(Cache):
             cur_ext_ver = extension.stem
             if extension_id is not None and cur_ext_id != extension_id:
                 continue
-            if extension_version is not None:
-                cmp_result = compare_version_string(cur_ext_ver, extension_version)
-                if cmp_result == VersionComparationResult.LessThan:
-                    continue
-            codebase = f"{base}{prefix}/{cur_ext_id}/{cur_ext_ver}.crx"
+            if extension_version is not None and (
+                compare_version_string(cur_ext_ver, extension_version)
+                == VersionComparationResult.LessThan
+            ):
+                continue
+            codebase = self.__extensions.url_for(ext_id=cur_ext_id, ext_ver=cur_ext_ver)
             hash_sha256 = sha256(extension.read_bytes()).hexdigest()
             size = extension.stat().st_size
             prodversionmin = (await self.__read_metadata(cur_ext_id, cur_ext_ver)).get(
@@ -181,7 +214,7 @@ class MemoryCache(Cache):
             if prodversionmin is not None and not isinstance(prodversionmin, str):
                 prodversionmin = None
             updatecheck = UpdateCheck(
-                codebase=codebase,
+                codebase=f"{base}{codebase}",
                 hash_sha256=hash_sha256,
                 size=size,
                 version=cur_ext_ver,

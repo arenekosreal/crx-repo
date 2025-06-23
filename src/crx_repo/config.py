@@ -18,9 +18,11 @@ from pydantic import PositiveInt
 from pydantic import ValidationError
 from pydantic import ValidatorFunctionWrapHandler
 from pydantic import field_validator
+from aiohttp.web import UrlDispatcher
 from pydantic.alias_generators import to_snake
 
 from crx_repo.cache import Cache
+from crx_repo.cache import MemoryCache
 from crx_repo.chrome import ChromeExtensionDownloader
 from crx_repo.client import ExtensionDownloader
 
@@ -180,6 +182,23 @@ class Config(BaseModel):
             if isinstance(value, list) and _are_all(value, str):  # pyright: ignore[reportUnknownArgumentType]
                 return [Extension.model_validate({"extension-id": i}) for i in value]
             raise
+
+    def get_cache(
+        self,
+        path: Path,
+        router: UrlDispatcher,
+        prefix: str,
+        router_name: str,
+    ) -> Cache:
+        """Get cache by config.
+
+        Args:
+            path(Path): The path to cache.
+            router(UrlDispatcher): The router to register extensions.
+            prefix(str): The extra part before url path.
+            router_name(str): The name of resource registered in router.
+        """
+        return MemoryCache(path, router, prefix, router_name)
 
 
 class ConfigParser(ABC):

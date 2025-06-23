@@ -13,7 +13,7 @@ from crx_repo.cache import MemoryCache
 @pytest.fixture
 def cache(tmp_path: Path) -> MemoryCache:
     """A pytest fixture to generate a MemoryCache object for testing."""
-    return MemoryCache(tmp_path, Application(), "/test-prefix", "test-name")
+    return MemoryCache(tmp_path, Application().router, "/test-prefix", "test-name")
 
 
 class TestMemoryCache:
@@ -46,7 +46,7 @@ class TestMemoryCache:
         ) as path:
             path.parent.mkdir(parents=True)
             _ = path.write_bytes(mock_data)
-        gupdate = await cache.get_gupdate_async("https://example.com", "/prefix")
+        gupdate = await cache.get_gupdate_async("https://example.com")
         assert len(gupdate.apps) == 1
         app = gupdate.apps[0]
         assert len(app.updatechecks) == 1
