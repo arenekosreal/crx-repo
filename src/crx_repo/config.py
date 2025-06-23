@@ -49,7 +49,7 @@ class TlsHttpListenConfig(BaseModel):
     """HTTPS config."""
 
     cert: Path = Path("crx-repo.crt")
-    key: str | None = None
+    key: Path | None = None
     password: str | None = None
 
     @property
