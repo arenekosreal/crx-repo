@@ -4,6 +4,8 @@ from abc import ABC
 from abc import abstractmethod
 from json import dumps
 from json import loads
+from typing import Any
+from typing import TypeGuard
 from typing import final
 from typing import override
 from hashlib import sha256
@@ -25,6 +27,10 @@ logger = getLogger(__name__)
 
 
 type MetadataSupportedType = int | str | bool
+
+
+def _ensure_metadata_value_type(value: Any) -> TypeGuard[MetadataSupportedType]:  # noqa: ANN401 # pyright: ignore[reportExplicitAny, reportAny]
+    return isinstance(value, (int, str, bool))
 
 
 class Cache(ABC):
@@ -113,7 +119,14 @@ class MemoryCache(Cache):
         extension_id: str,
         extension_version: str,
     ) -> dict[str, MetadataSupportedType]:
-        return loads(self.__metadata_path(extension_id, extension_version).read_text())  # pyright: ignore[reportAny]
+        data = loads(self.__metadata_path(extension_id, extension_version).read_text())  # pyright: ignore[reportAny]
+        if isinstance(data, dict):
+            return {
+                k: v
+                for k, v in data.items()  # pyright: ignore[reportUnknownVariableType]
+                if isinstance(k, str) and _ensure_metadata_value_type(v)
+            }
+        return {}
 
     async def __write_metadata(
         self,
