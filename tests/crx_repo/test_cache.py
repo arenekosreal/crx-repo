@@ -25,7 +25,7 @@ class TestMemoryCache:
         async with cache.new_extension_async(
             "example-id",
             "example-ver",
-            metakey="metaver",
+            {"metakey": "metaver"},
         ) as path:
             path.parent.mkdir(parents=True)
             _ = path.write_bytes(randbytes(42))  # noqa: S311
@@ -42,7 +42,7 @@ class TestMemoryCache:
         async with cache.new_extension_async(
             "example-id",
             "example-ver",
-            metakey="metaver",
+            {"metakey": "metaver"},
         ) as path:
             path.parent.mkdir(parents=True)
             _ = path.write_bytes(mock_data)
