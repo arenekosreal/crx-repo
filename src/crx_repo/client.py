@@ -53,6 +53,7 @@ class ExtensionDownloader(ABC):
                 self._extension_id,
             )
 
+    @final
     async def __download(
         self,
         url: str,
@@ -103,6 +104,7 @@ class ExtensionDownloader(ABC):
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
+    @final
     async def __check_and_download(self, base: str):
         async with ClientSession() as session:
             gupdate = await self.__cache.get_gupdate_async(
@@ -133,6 +135,7 @@ class ExtensionDownloader(ABC):
                         update.hash_sha256,
                     )
 
+    @final
     async def download_forever(self, interval: PositiveInt, base: str):
         """Download extensions forever if it is needed to do."""
         try:
