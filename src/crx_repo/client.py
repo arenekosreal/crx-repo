@@ -103,38 +103,41 @@ class ExtensionDownloader(ABC):
                 logger.warning("No sha256 checksum is provided, skip checking...")
             _ = temp_crx.replace(path)
 
+    async def __check_and_download(self, base: str):
+        async with ClientSession() as session:
+            gupdate = await self.__cache.get_gupdate_async(
+                base,
+                self._extension_id,
+            )
+            extension = gupdate.get_extension(self._extension_id)
+            update = await self._check_updates(
+                extension.latest_version if extension is not None else None,
+                session,
+            )
+            if update is not None:
+                logger.info(
+                    "Downloading extension %s with version %s...",
+                    self._extension_id,
+                    update.version,
+                )
+                async with self.__cache.new_extension_async(
+                    self._extension_id,
+                    update.version,
+                    {"prodversionmin": update.prodversionmin},
+                ) as path:
+                    await self.__download(
+                        update.codebase,
+                        path,
+                        session,
+                        update.size,
+                        update.hash_sha256,
+                    )
+
     async def download_forever(self, interval: PositiveInt, base: str):
         """Download extensions forever if it is needed to do."""
         try:
             while True:
-                async with ClientSession() as session:
-                    gupdate = await self.__cache.get_gupdate_async(
-                        base,
-                        self._extension_id,
-                    )
-                    extension = gupdate.get_extension(self._extension_id)
-                    update = await self._check_updates(
-                        extension.latest_version if extension is not None else None,
-                        session,
-                    )
-                    if update is not None:
-                        logger.info(
-                            "Downloading extension %s with version %s...",
-                            self._extension_id,
-                            update.version,
-                        )
-                        async with self.__cache.new_extension_async(
-                            self._extension_id,
-                            update.version,
-                            {"prodversionmin": update.prodversionmin},
-                        ) as path:
-                            await self.__download(
-                                update.codebase,
-                                path,
-                                session,
-                                update.size,
-                                update.hash_sha256,
-                            )
+                await self.__check_and_download(base)
                 await sleep(interval)
         except CancelledError:
             pass
