@@ -220,7 +220,7 @@ class MemoryCache(Cache):
                 version=cur_ext_ver,
                 prodversionmin=prodversionmin,
             )
-            app = next(filter(lambda app: app.appid == cur_ext_id, gupdate.apps), None)
+            app = gupdate.get_extension(cur_ext_id)
             if app is None:
                 app = App(appid=cur_ext_id, status="ok", updatechecks=[updatecheck])
                 gupdate.apps.append(app)
