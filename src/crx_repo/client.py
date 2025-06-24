@@ -109,7 +109,8 @@ class ExtensionDownloader(ABC):
             while True:
                 async with ClientSession() as session:
                     gupdate = await self.__cache.get_gupdate_async(
-                        base, self._extension_id,
+                        base,
+                        self._extension_id,
                     )
                     extension = gupdate.get_extension(self._extension_id)
                     update = await self._check_updates(
@@ -125,7 +126,7 @@ class ExtensionDownloader(ABC):
                         async with self.__cache.new_extension_async(
                             self._extension_id,
                             update.version,
-                            prodversionmin=update.prodversionmin,
+                            {"prodversionmin": update.prodversionmin},
                         ) as path:
                             await self.__download(
                                 update.codebase,

@@ -59,14 +59,14 @@ class Cache(ABC):
         self,
         extension_id: str,
         extension_version: str,
-        **data: MetadataSupportedType | None,
+        data: dict[str, MetadataSupportedType | None],
     ) -> AsyncGenerator[Path]:
         """Prepare storaging a new extension.
 
         Args:
             extension_id(str): The id of extension.
             extension_version(str): The version of extension.
-            **data(MetadataSupportedType): The metadata of extension.
+            data(dict[MetadataSupportedType | None]): The metadata of extension.
 
         Yields:
             Path: The path of extension.
@@ -173,7 +173,7 @@ class MemoryCache(Cache):
         self,
         extension_id: str,
         extension_version: str,
-        **data: MetadataSupportedType | None,
+        data: dict[str, MetadataSupportedType | None],
     ) -> AsyncGenerator[Path]:
         extension_path = self.__path / extension_id / (extension_version + ".crx")
         yield extension_path
