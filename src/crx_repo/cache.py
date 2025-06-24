@@ -4,8 +4,6 @@ from abc import ABC
 from abc import abstractmethod
 from json import dumps
 from json import loads
-from typing import Any
-from typing import TypeGuard
 from typing import final
 from typing import override
 from hashlib import sha256
@@ -31,10 +29,6 @@ logger = getLogger(__name__)
 
 
 type MetadataSupportedType = int | str | bool
-
-
-def _ensure_metadata_value_type(value: Any) -> TypeGuard[MetadataSupportedType]:  # noqa: ANN401 # pyright: ignore[reportExplicitAny, reportAny]
-    return isinstance(value, (int, str, bool))
 
 
 class Cache(ABC):
@@ -147,25 +141,25 @@ class MemoryCache(Cache):
     def __metadata_path(self, extension_id: str, extension_version: str) -> Path:
         return self.__path / extension_id / (extension_version + ".meta.json")
 
-    async def __read_metadata(
+    def __read_metadata[T: MetadataSupportedType](
         self,
         extension_id: str,
         extension_version: str,
-    ) -> dict[str, MetadataSupportedType]:
+        key: str,
+        t: type[T],
+    ) -> T | None:
         data = loads(self.__metadata_path(extension_id, extension_version).read_text())  # pyright: ignore[reportAny]
         if isinstance(data, dict):
-            return {
-                k: v
-                for k, v in data.items()  # pyright: ignore[reportUnknownVariableType]
-                if isinstance(k, str) and _ensure_metadata_value_type(v)
-            }
-        return {}
+            value = data.get(key)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            if isinstance(value, t):
+                return value
+        return None
 
-    async def __write_metadata(
+    def __write_metadata(
         self,
         extension_id: str,
         extension_version: str,
-        **data: MetadataSupportedType,
+        data: dict[str, MetadataSupportedType],
     ):
         _ = self.__metadata_path(extension_id, extension_version).write_text(
             dumps(data, sort_keys=True, indent=4),
@@ -181,10 +175,10 @@ class MemoryCache(Cache):
     ) -> AsyncGenerator[Path]:
         extension_path = self.__path / extension_id / (extension_version + ".crx")
         yield extension_path
-        await self.__write_metadata(
+        self.__write_metadata(
             extension_id,
             extension_version,
-            **{k: v for k, v in data.items() if v is not None},
+            {k: v for k, v in data.items() if v is not None},
         )
 
     @override
@@ -205,16 +199,17 @@ class MemoryCache(Cache):
                 == VersionComparationResult.LessThan
             ):
                 continue
-            codebase = self.__extensions.url_for(ext_id=cur_ext_id, ext_ver=cur_ext_ver)
+            codebase = f"{base}{self.__extensions.url_for(ext_id=cur_ext_id, ext_ver=cur_ext_ver)}"
             hash_sha256 = sha256(extension.read_bytes()).hexdigest()
             size = extension.stat().st_size
-            prodversionmin = (await self.__read_metadata(cur_ext_id, cur_ext_ver)).get(
+            prodversionmin = self.__read_metadata(
+                cur_ext_id,
+                cur_ext_ver,
                 "prodversionmin",
+                str,
             )
-            if prodversionmin is not None and not isinstance(prodversionmin, str):
-                prodversionmin = None
             updatecheck = UpdateCheck(
-                codebase=f"{base}{codebase}",
+                codebase=codebase,
                 hash_sha256=hash_sha256,
                 size=size,
                 version=cur_ext_ver,
