@@ -6,6 +6,8 @@ from json import dumps
 from json import loads
 from typing import final
 from typing import override
+from asyncio import TaskGroup
+from asyncio import to_thread
 from hashlib import sha256
 from logging import getLogger
 from pathlib import Path
@@ -189,16 +191,18 @@ class MemoryCache(Cache):
         extension_version: str | None = None,
     ) -> GUpdate:
         gupdate = GUpdate(apps=[], protocol="2.0")
-        for extension in self.__path.glob("./*/*.crx"):
+
+        def on_each_extension(extension: Path):
             cur_ext_id = extension.parent.stem
             cur_ext_ver = extension.stem
             if extension_id is not None and cur_ext_id != extension_id:
-                continue
-            if extension_version is not None and (
-                compare_version_string(cur_ext_ver, extension_version)
+                return
+            if (
+                extension_version is not None
+                and compare_version_string(cur_ext_ver, extension_version)
                 == VersionComparationResult.LessThan
             ):
-                continue
+                return
             codebase = f"{base}{self.__extensions.url_for(ext_id=cur_ext_id, ext_ver=cur_ext_ver)}"
             hash_sha256 = sha256(extension.read_bytes()).hexdigest()
             size = extension.stat().st_size
@@ -221,4 +225,11 @@ class MemoryCache(Cache):
                 gupdate.apps.append(app)
             elif updatecheck not in app.updatechecks:
                 app.updatechecks.append(updatecheck)
+
+        async with TaskGroup() as tg:
+            tasks = [
+                tg.create_task(to_thread(on_each_extension, extension))
+                for extension in self.__path.glob("./*/*.crx")
+            ]
+        logger.debug("Waiting for %d tasks...", len(tasks))
         return gupdate
