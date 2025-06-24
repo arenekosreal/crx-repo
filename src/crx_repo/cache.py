@@ -132,7 +132,7 @@ class MemoryCache(Cache):
             physical_path = self.__path / ext_id / (ext_ver + ".crx")
             if physical_path.is_file():
                 return Response(
-                    body=physical_path.read_bytes(),
+                    body=await to_thread(physical_path.read_bytes),
                     # See https://developer.chrome.com/docs/extensions/how-to/distribute/host-on-linux#hosting
                     # for how chrome think an extension is installable.
                     content_type="application/x-chrome-extension",
