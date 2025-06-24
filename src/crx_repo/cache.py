@@ -224,6 +224,6 @@ class MemoryCache(Cache):
             if app is None:
                 app = App(appid=cur_ext_id, status="ok", updatechecks=[updatecheck])
                 gupdate.apps.append(app)
-            elif len([upd for upd in app.updatechecks if upd == updatecheck]) == 0:
+            elif updatecheck not in app.updatechecks:
                 app.updatechecks.append(updatecheck)
         return gupdate
