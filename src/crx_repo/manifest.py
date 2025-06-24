@@ -4,9 +4,9 @@ Example:
     manifest is omitted for clarity.
     ```xml
     <gupdate xmlns="http://www.google.com/update2/response" protocol="2.0">
-    <app appid="" status="ok">
-    <updatecheck codebase="" hash_sha256="" size="" version=""/>
-    </app>
+        <app appid="" status="ok">
+            <updatecheck codebase="" hash_sha256="" size="" version=""/>
+        </app>
     </gupdate>
     ```
 """
