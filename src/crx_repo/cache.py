@@ -176,12 +176,18 @@ class MemoryCache(Cache):
         data: dict[str, MetadataSupportedType | None],
     ) -> AsyncGenerator[Path]:
         extension_path = self.__path / extension_id / (extension_version + ".crx")
+        await to_thread(extension_path.parent.mkdir, parents=True, exist_ok=True)
         yield extension_path
-        self.__write_metadata(
-            extension_id,
-            extension_version,
-            {k: v for k, v in data.items() if v is not None},
-        )
+        if (
+            await to_thread(extension_path.is_file)
+            and (await to_thread(extension_path.stat)).st_size > 0
+        ):
+            await to_thread(
+                self.__write_metadata,
+                extension_id,
+                extension_version,
+                {k: v for k, v in data.items() if v is not None},
+            )
 
     @override
     async def get_gupdate_async(

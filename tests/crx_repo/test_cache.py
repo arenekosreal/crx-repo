@@ -27,7 +27,6 @@ class TestMemoryCache:
             "example-ver",
             {"metakey": "metaver"},
         ) as path:
-            path.parent.mkdir(parents=True)
             _ = path.write_bytes(randbytes(42))  # noqa: S311
         target_file = tmp_path / "example-id" / "example-ver.crx"
         meta_file = tmp_path / "example-id" / "example-ver.meta.json"
@@ -44,7 +43,6 @@ class TestMemoryCache:
             "example-ver",
             {"metakey": "metaver"},
         ) as path:
-            path.parent.mkdir(parents=True)
             _ = path.write_bytes(mock_data)
         gupdate = await cache.get_gupdate_async("https://example.com")
         assert len(gupdate.apps) == 1
