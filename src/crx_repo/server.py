@@ -58,10 +58,11 @@ def setup(config: Config) -> Application:
         for extension_key, extension in extensions.items():
             app[extension_key] = create_task(
                 extension.get_downloader(
-                    config.version,
+                    config.custom_args,
+                    config.interval,
                     config.proxy,
                     app[cache_key],
-                ).download_forever(config.interval, base),
+                ).download_forever(base),
             )
             logger.debug("Created downloder for extension %s.", extension.extension_id)
         logger.debug("Background tasks initialized successfully.")

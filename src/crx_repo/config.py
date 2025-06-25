@@ -24,6 +24,7 @@ from pydantic.alias_generators import to_snake
 from crx_repo.cache import Cache
 from crx_repo.cache import MemoryCache
 from crx_repo.chrome import ChromeExtensionDownloader
+from crx_repo.client import DownloaderCustomArg
 from crx_repo.client import ExtensionDownloader
 
 
@@ -126,18 +127,23 @@ class Extension(BaseModel):
 
     extension_id: str = Field(max_length=32, min_length=32)
     extension_provider: ExtensionProvider = "chrome"
+    proxy: str | None = None
+    interval: PositiveInt | None = None
+    custom_args: DownloaderCustomArg = Field(default_factory=dict)
 
     def get_downloader(
         self,
-        chrome_version: str,
+        custom_args: dict[ExtensionProvider, DownloaderCustomArg],
+        interval: PositiveInt,
         proxy: str | None,
         cache: Cache,
     ) -> ExtensionDownloader:
         """Get downloader by extension config.
 
         Args:
-            chrome_version(str): The chrome_version of ExtensionDownloader.
-            proxy(str | None): The proxy of ExtensionDownloader.
+            custom_args(dict[ExtensionProvider, DownloaderCustomArg]): Custom arguments in main cfg.
+            interval(PositiveInt): The interval of ExtensionDownloader from main config.
+            proxy(str | None): The proxy of ExtensionDownloader from main config.
             cache(Cache): The cache of ExtensionDownloader.
 
         Returns:
@@ -145,10 +151,13 @@ class Extension(BaseModel):
         """
         match self.extension_provider:
             case "chrome":
+                custom_args_updated = custom_args.get(self.extension_provider, {})
+                custom_args_updated.update(self.custom_args)
                 return ChromeExtensionDownloader(
                     self.extension_id,
-                    chrome_version,
-                    proxy,
+                    custom_args_updated,
+                    self.interval or interval,
+                    self.proxy or proxy,
                     cache,
                 )
 
@@ -161,11 +170,13 @@ class Config(BaseModel):
     prefix: str = "/crx-repo"
     base: str = "http://localhost:8888"
     proxy: str | None = None
-    version: str = "128.0"
     interval: PositiveInt = 10800
     extensions: list[Extension] = []
     cache_dir: Path = Path("cache")
     listen: ListenConfig = ListenConfig()
+    custom_args: dict[ExtensionProvider, DownloaderCustomArg] = Field(
+        default_factory=dict,
+    )
 
     @field_validator("extensions", mode="wrap")
     @classmethod

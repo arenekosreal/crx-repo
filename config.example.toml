@@ -19,20 +19,24 @@
 # Simply remove this to connect directly
 #proxy = ""
 
-# Which Chrome/Chromium version sent to Google
-#version = "128.0"
-
 # how many seconds to trigger extension checking.
 #interval = 10800
+
+# Which directory is used to storage cache
+#cache-dir = "cache"
+
+#[custom-args.chrome]
+# Which Chrome/Chromium version sent to Google
+#version = "128.0"
 
 # Which extensions to track updating
 # Write their id here
 #[[extensions]]
 #extension-id = ""
 #extension-provider = "chrome" # Optional, defaults to "chrome".
-
-# Which directory is used to storage cache
-#cache-dir = "cache"
+#proxy = "" # Optional, use proxy above if not set.
+#interval = "" # Optional, use interval above if not set.
+#custom-args = {} # Optional, override custom-args.<extension-provider> in main part.
 
 [listen.tcp]
 # Listen TCP socket and transport http data

@@ -110,7 +110,12 @@ def test_get_downloader(cache: MemoryCache):
             "extension-provider": "chrome",
         },
     )
-    downloader = extension.get_downloader("128.0", None, cache)
+    downloader = extension.get_downloader(
+        {"chrome": {"version": "128.0"}},
+        65535,
+        None,
+        cache,
+    )
     assert isinstance(downloader, ChromeExtensionDownloader)
 
 

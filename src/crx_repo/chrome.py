@@ -12,6 +12,7 @@ from aiohttp.web import HTTPOk
 
 from crx_repo.utils import VersionComparationResult
 from crx_repo.utils import compare_version_string
+from crx_repo.client import DownloaderCustomArg
 from crx_repo.client import ExtensionDownloader
 from crx_repo.manifest import GUpdate
 from crx_repo.manifest import UpdateCheck
@@ -28,6 +29,13 @@ class ChromeExtensionDownloader(ExtensionDownloader):
     )
 
     @override
+    def _handle_custom_args(self, custom_args: DownloaderCustomArg):
+        chrome_version = custom_args.get("version")
+        if not isinstance(chrome_version, str):
+            raise TypeError(chrome_version)
+        self.__chrome_version: str = chrome_version
+
+    @override
     async def _check_updates(
         self,
         latest_version: str | None,
@@ -37,7 +45,7 @@ class ChromeExtensionDownloader(ExtensionDownloader):
         params = {
             "response": "updatecheck",
             "acceptformat": "crx2,crx3",
-            "prodversion": self._chrome_version,
+            "prodversion": self.__chrome_version,
             "x": urlencode(x) + "&uc",  # No `updatecheck` without `&uc`
         }
         async with session.get(

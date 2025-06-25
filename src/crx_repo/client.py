@@ -20,6 +20,8 @@ from crx_repo.manifest import UpdateCheck
 
 logger = getLogger(__name__)
 
+type DownloaderCustomArg = dict[str, str | int | bool]
+
 
 class ExtensionDownloader(ABC):
     """Abstract class for what a extension downloader should do."""
@@ -30,7 +32,8 @@ class ExtensionDownloader(ABC):
     def __init__(
         self,
         extension_id: str,
-        chrome_version: str,
+        custom_args: DownloaderCustomArg,
+        interval: PositiveInt,
         proxy: str | None,
         cache: Cache,
     ):
@@ -38,20 +41,22 @@ class ExtensionDownloader(ABC):
 
         Args:
             extension_id(str): The id of extension.
-            chrome_version(str): The value of `prodversion` in queries of request.
+            custom_args(DownloaderCustomArg): Custom arguments passed to downloader.
+            interval(PositiveInt): The interval to trigger updating.
             proxy(str | None): The proxy to send requests. None means no proxy.
             cache(Cache): The Cache implementation.
         """
         self._extension_id: str = extension_id
-        self._chrome_version: str = chrome_version
         self._proxy: str | None = proxy
         self.__cache: Cache = cache
+        self.__interval = interval
         if self._proxy is not None:
             logger.debug(
                 "Use proxy %s to download extension %s.",
                 self._proxy,
                 self._extension_id,
             )
+        self._handle_custom_args(custom_args)
 
     @final
     async def __download(
@@ -136,12 +141,12 @@ class ExtensionDownloader(ABC):
                     )
 
     @final
-    async def download_forever(self, interval: PositiveInt, base: str):
+    async def download_forever(self, base: str):
         """Download extensions forever if it is needed to do."""
         try:
             while True:
                 await self.__check_and_download(base)
-                await sleep(interval)
+                await sleep(self.__interval)
         except CancelledError:
             pass
         logger.debug(
@@ -155,3 +160,6 @@ class ExtensionDownloader(ABC):
         latest_version: str | None,
         session: ClientSession,
     ) -> UpdateCheck | None: ...
+
+    @abstractmethod
+    def _handle_custom_args(self, custom_args: DownloaderCustomArg): ...
