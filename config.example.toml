@@ -1,4 +1,4 @@
-# Set logger level  for diagnosing
+# Set logger level for diagnosing
 # Available value: "NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 # Can override level in commandline argument
 #log-level = "DEBUG"
@@ -15,7 +15,7 @@
 # <base>/<prefix>/<manifest-path>
 #manifest-path = "/updates.xml"
 
-# Use proxy to connect to google web store
+# Use proxy to connect to Internet.
 # Simply remove this to connect directly
 #proxy = ""
 
@@ -26,7 +26,7 @@
 #cache-dir = "cache"
 
 #[custom-args.chrome]
-# Which Chrome/Chromium version sent to Google
+# Which Chrome/Chromium version to send to Google
 #version = "128.0"
 
 # Which extensions to track updating
