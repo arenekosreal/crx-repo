@@ -1,6 +1,6 @@
 """Download Chrom(e|ium) extensions from various sources and serve a update manifest."""
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 
 from signal import SIGINT
