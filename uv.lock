@@ -705,15 +705,15 @@ wheels = [
 
 [[package]]
 name = "pytest-ruff"
-version = "0.4.1"
+version = "0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
     { name = "ruff" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d1/28/4d4e312a16c8969f475f6e18741bc6a2f8ee70d78e16dc3b6deba9f94e6d/pytest_ruff-0.4.1.tar.gz", hash = "sha256:2c9a30f15f384c229c881b52ec86cfaf1e79d39530dd7dd5f2d6aebe278f7eb7", size = 3919, upload-time = "2024-07-21T08:01:30.43Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/32/5a/bee55130757fb4a14e0ac5d2c6558323275b5dccfa2f5353f3893299ff7d/pytest_ruff-0.5.tar.gz", hash = "sha256:f611c780fc2b9b8d7041fa0e7589f0a9f352b288d0cfc330881101b35d382063", size = 3854, upload-time = "2025-06-19T07:26:24.607Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl", hash = "sha256:69acd5b2ba68d65998c730b5b4d656788193190e45f61a53aa66ef8b390634a4", size = 4589, upload-time = "2024-07-21T08:01:28.997Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/ca/abfce6de0bb0f017ed05ef9f2330596235cc5a3341b4d8d40895682b3814/pytest_ruff-0.5-py3-none-any.whl", hash = "sha256:d9db170d86fb167008e6702b4d79e2cccd8287f069c3a57f9261831cebdc4a31", size = 4680, upload-time = "2025-06-19T07:26:23.897Z" },
 ]
 
 [[package]]
