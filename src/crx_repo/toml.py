@@ -1,6 +1,7 @@
 """Parse config in toml format."""
 
 from typing import override
+from asyncio import to_thread
 from logging import getLogger
 from pathlib import Path
 from tomllib import TOMLDecodeError
@@ -20,10 +21,10 @@ class TomlConfigParser(ConfigParser):
 
     @override
     async def parse_async(self, config: Path) -> Config | None:
-        if not config.exists():
+        if not await to_thread(config.exists):
             return None
         try:
-            config_dict = loads(config.read_text())
+            config_dict = loads(await to_thread(config.read_text))
             config_object = Config.model_validate(config_dict)
         except TOMLDecodeError:
             logger.exception("Failed to parse toml file.")
