@@ -6,7 +6,7 @@ requires-python = "<3.15,>=3.12"
 dependencies = [
     "aiohttp<4.0.0,>=3.9.3",
     "pydantic>=2.13.4",
-    "typer>=0.25.1",
+    "typer>=0.26.4",
     "pydantic-xml>=2.17.1",
 ]
 name = "crx-repo"
