@@ -35,7 +35,7 @@ build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
-    "cryptography>=48.0.1",
+    "cryptography>=49.0.0",
     "pytest-aiohttp>=1.1.1,<2.0.0",
     "pytest-cov>=6.0.0",
     "pytest-ruff<1.0.0,>=0.3.1",
