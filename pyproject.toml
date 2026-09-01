@@ -22,7 +22,7 @@ uvloop = [
     "uvloop>=0.20.0",
 ]
 lxml = [
-    "lxml>=5.4.0",
+    "lxml*",
 ]
 all = [
     "uvloop",
